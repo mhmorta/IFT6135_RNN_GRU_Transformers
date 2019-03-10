@@ -48,6 +48,15 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
                   Do not apply dropout on recurrent connections.
     """
     super(RNN, self).__init__()
+    self.hidden = torch.zeros(hidden_size);
+    self.Wi = torch.zeros(emb_size, hidden_size);
+    self.Wh = torch.zeros(hidden_size, hidden_size);
+    self.Wy = torch.zeros(hidden_size, vocab_size)
+    self.embd = nn.Embedding(vocab_size, hidden_size)
+    self.fc1= nn.Linear
+    self.num_layers = num_layers
+
+    # self.
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
@@ -68,6 +77,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # TODO ========================
     # Initialize all the weights uniformly in the range [-0.1, 0.1]
     # and all the biases to 0 (in place)
+    nn.init.uniform_(self.Wi, -0.1, 0.1);
+    nn.init.uniform_(self.Wh, -0.1, 0.1);
+    nn.init.uniform_(self.Wy, -0.1, 0.1);
 
   def init_hidden(self):
     # TODO ========================
@@ -75,7 +87,8 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     """
     This is used for the first mini-batch in an epoch, only.
     """
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
 
   def forward(self, inputs, hidden):
     # TODO ========================
@@ -113,6 +126,16 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
               if you are curious.
                     shape: (num_layers, batch_size, hidden_size)
     """
+    embedded = self.embd(inputs)
+    logits = []
+    for s_index in range(seq_len):
+        for layer in range(self.num_layers):
+            hidden = torch.mm(hidden,self.Wh) + torch.mm(embedded[s_index,:,:],self.Wi)
+            hidden = torch.tanh(hidden)
+            logit = torch.mm(hidden, self.Wy)
+            logits.append(logit);
+
+    logits = torch.cat(logits, dim=1) 
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
@@ -157,6 +180,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def init_weights_uniform(self):
     # TODO ========================
+    pass
 
   def init_hidden(self):
     # TODO ========================
@@ -164,10 +188,12 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def forward(self, inputs, hidden):
     # TODO ========================
+    logits = []
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
+    samples = []
     return samples
 
 
