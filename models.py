@@ -57,15 +57,10 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.num_layers = num_layers
     self.dp_keep_prob = dp_keep_prob
 
-
-    self.hidden = torch.zeros(hidden_size)
     self.Wi = nn.Parameter(torch.zeros(emb_size, hidden_size))
     self.Wh = nn.Parameter(torch.zeros(hidden_size, hidden_size))
     self.Wy = nn.Parameter(torch.zeros(hidden_size, vocab_size))
     self.embd = nn.Embedding(vocab_size, emb_size)
-    self.fc1 = nn.Linear
-
-    # self.
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
