@@ -2,7 +2,13 @@
 .vscode/
 venv/
 */__pycache__/*
+__pycache__/*
+data/MNIST/*
+denis_rnn/data/*
 .ipynb_checkpoints
 .csv#
 ./Experiments/*
 */development/*
+RNN_ADAM_*
+GRU_SGD_LR_*
+
