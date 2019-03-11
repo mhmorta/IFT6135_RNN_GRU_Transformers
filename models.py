@@ -57,9 +57,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.num_layers = num_layers
     self.dp_keep_prob = dp_keep_prob
 
-    self.Wi = nn.Parameter(torch.zeros(emb_size, hidden_size))
-    self.Wh = nn.Parameter(torch.zeros(hidden_size, hidden_size))
-    self.Wy = nn.Parameter(torch.zeros(hidden_size, vocab_size))
+    self.Wi = nn.Linear(emb_size, hidden_size)#nn.Parameter(torch.zeros(emb_size, hidden_size))
+    self.Wh = nn.Linear(hidden_size, hidden_size) #nn.Parameter(torch.zeros(hidden_size, hidden_size))
+    self.Wy = nn.Linear(hidden_size, vocab_size) #nn.Parameter(torch.zeros(hidden_size, vocab_size))
     self.embd = nn.Embedding(vocab_size, emb_size)
 
     # TODO ========================
@@ -135,9 +135,11 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     for s_index in range(self.seq_len):
         for layer in range(self.num_layers):
             #onehot = np.eye(self.vocab_size, dtype=int)[inputs[s_index, :]]
-            hidden = torch.matmul(hidden, self.Wh) + torch.matmul(embedded[s_index, :, :], self.Wi)
+            #hidden = torch.matmul(hidden, self.Wh) + torch.matmul(embedded[s_index, :, :], self.Wi)
+            hidden = self.Wh(hidden) + self.Wi(embedded[s_index, :, :])
             hidden = torch.tanh(torch.squeeze(hidden))
-            logit = torch.matmul(hidden, self.Wy)
+            #logit = torch.matmul(hidden, self.Wy)
+            logit = self.Wy(hidden)
             logits.append(logit)
 
     logits = torch.stack(logits, dim=0)
