@@ -12,7 +12,7 @@
 #    https://github.com/ceshine/examples/blob/master/word_language_model/main.py
 #    https://github.com/teganmaharaj/zoneout/blob/master/zoneout_word_ptb.py
 #    https://github.com/harvardnlp/annotated-transformer
-
+ض
 # GENERAL INSTRUCTIONS: 
 #    - ! IMPORTANT! 
 #      Unless we're otherwise notified we will run exactly this code, importing 
@@ -41,7 +41,7 @@
 # PROBLEM-SPECIFIC INSTRUCTIONS:   
 #    - For Problems 1-3, paste the code for the RNN, GRU, and Multi-Head attention 
 #      respectively in your report, in a monospace font.
-#    - For Problem 4.1 (model comparison), the hyperparameter settings you should run are as follows:
+#    - For Problem 4.1 (model  comparison), the hyperparameter settings you should run are as follows:
 #          --model=RNN --optimizer=ADAM --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35 --save_best
 #          --model=GRU --optimizer=SGD_LR_SCHEDULE --initial_lr=10 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35 --save_best
 #          --model=TRANSFORMER --optimizer=SGD_LR_SCHEDULE --initial_lr=20 --batch_size=128 --seq_len=35 --hidden_size=512 --num_layers=6 --dp_keep_prob=0.9 --save_best
