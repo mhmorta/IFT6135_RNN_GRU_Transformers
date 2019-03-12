@@ -1,36 +1,26 @@
 import torch
 import torch.nn as nn
 
-import numpy as np
-import torch.nn.functional as F
-import math, copy, time
-from torch.autograd import Variable
-import matplotlib.pyplot as plt
-
-
 
 class RNNUnit(nn.Module):
     """
     Class RNNUnit represents a single RNN recurrent layer cell
     """
 
-    def __init__(self, hidden_size, input_size, dropout_prob):
+    def __init__(self, hidden_size, input_size, dropout_rate):
         super(RNNUnit, self).__init__()
         self.hidden_size = hidden_size
         self.i2h = nn.Linear(input_size, hidden_size, bias=False)
         self.h2h = nn.Linear(hidden_size, hidden_size)
-        self.dropout = nn.Dropout(dropout_prob)
+        self.dropout = nn.Dropout(dropout_rate)
         self.non_linearity = nn.Tanh()
 
-    def forward(self, inputs, hidden=None):
+    def forward(self, inputs, hidden):
         """
         :param inputs: shape: (batch_size, input_size)
         :param hidden: previous hidden state (t-1) 2D tensor of shape (batch_size, hidden_size)
         :return: output: shape: (batch_size, input_size), hidden: new hidden state : shape (batch_size, hidden_size)
         """
-        if hidden is None:
-            hidden = self.init_hidden()
-
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
 
@@ -38,9 +28,6 @@ class RNNUnit(nn.Module):
         outputs = self.dropout(hidden)  # shape (batch_size, hidden_size)
 
         return outputs, hidden
-
-    def init_hidden(self):
-        return torch.zeros(self.batch_size, self.hidden_size)
 
 
 # Problem 1
@@ -110,7 +97,6 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # initialize embeddings weight
         nn.init.uniform_(self.embeddings.weight, -0.1, 0.1)
 
-
     def init_hidden(self):
         # TODO ========================
         # initialize the hidden states to zero
@@ -173,8 +159,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             layer_output, layer_hidden = self.hidden_stack[0](self.dropout(token_batch), layer_hidden_prev)
 
             # collect the output of hidden layers
-            hidden_list = []
-            hidden_list.append(layer_hidden)
+            hidden_list = [layer_hidden]
 
             # all other hidden layers: 2, 3 ...
             for idx, layer in enumerate(self.hidden_stack[1:]):
