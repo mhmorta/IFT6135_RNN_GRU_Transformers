@@ -30,7 +30,16 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    "A helper function for producing N identical layers (each with their own parameters)."
+    """
+    A helper function for producing N identical layers (each with their own parameters).
+    
+    inputs: 
+        module: a pytorch nn.module
+        N (int): the number of copies of that module to return
+
+    returns:
+        a ModuleList with the copies of the module (the ModuleList is itself also a module)
+    """
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 # Problem 1
@@ -57,15 +66,11 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.num_layers = num_layers
     self.dp_keep_prob = dp_keep_prob
 
-
-    self.hidden = torch.zeros(hidden_size)
-    self.Wi = nn.Parameter(torch.zeros(emb_size, hidden_size))
-    self.Wh = nn.Parameter(torch.zeros(hidden_size, hidden_size))
-    self.Wy = nn.Parameter(torch.zeros(hidden_size, vocab_size))
+    self.Wi = nn.Linear(emb_size, hidden_size)#nn.Parameter(torch.zeros(emb_size, hidden_size))
+    self.Wh = nn.Linear(hidden_size, hidden_size) #nn.Parameter(torch.zeros(hidden_size, hidden_size))
+    self.Wy = nn.Linear(hidden_size, vocab_size) #nn.Parameter(torch.zeros(hidden_size, vocab_size))
     self.embd = nn.Embedding(vocab_size, emb_size)
-    self.fc1 = nn.Linear
-
-    # self.
+    self.dropout = nn.Dropout(1 - self.dp_keep_prob)
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
@@ -84,8 +89,10 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
   def init_weights_uniform(self):
     # TODO ========================
-    # Initialize all the weights uniformly in the range [-0.1, 0.1]
-    # and all the biases to 0 (in place)
+    # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+    # and output biases to 0 (in place). The embeddings should not use a bias vector.
+    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly 
+    # in the range [-k, k] where k is the square root of 1/hidden_size
     nn.init.uniform_(self.Wi, -0.1, 0.1);
     nn.init.uniform_(self.Wh, -0.1, 0.1);
     nn.init.uniform_(self.Wy, -0.1, 0.1);
@@ -101,7 +108,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    # Compute the forward pass, using a nested python for loops.
+    # Compute the forward pass, using nested python for loops.
     # The outer for loop should iterate over timesteps, and the 
     # inner for loop should iterate over hidden layers of the stack. 
     # 
@@ -139,14 +146,13 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     logits = []
     for s_index in range(self.seq_len):
         for layer in range(self.num_layers):
-            #onehot = np.eye(self.vocab_size, dtype=int)[inputs[s_index, :]]
-            hidden = torch.matmul(hidden, self.Wh) + torch.matmul(embedded[s_index, :, :], self.Wi)
+            hidden = self.Wh(hidden) + self.Wi(self.dropout(embedded[s_index, :, :]))
             hidden = torch.tanh(torch.squeeze(hidden))
-            logit = torch.matmul(hidden, self.Wy)
-            logits.append(logit)
+            logit = self.Wy(self.dropout(hidden)) # shape (batch_size, vocab_size)
+            logits.append(logit) # shape (seq_len, batch_size, vocab_size)
 
-    logits = torch.stack(logits, dim=0)
-    return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+    logits = torch.stack(logits)
+    return logits, hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
@@ -286,12 +292,14 @@ class MultiHeadedAttention(nn.Module):
         self.n_units = n_units 
 
         # TODO: create/initialize any necessary parameters or layers
+        # Initialize all weights and biases uniformly in the range [-k, k],
+        # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
         
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
-        # query, key, and value all have size: (batch_size, seq_len, self.n_units, self.d_k)
+        # query, key, and value all have size: (batch_size, seq_len, self.n_units)
         # mask has size: (batch_size, seq_len, seq_len)
         # As described in the .tex, apply input masking to the softmax 
         # generating the "attention values" (i.e. A_i in the .tex)
