@@ -42,6 +42,7 @@ def clones(module, N):
     """
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
+
 class RNNUnit(nn.Module):
     """
     Class RNNUnit represents a single RNN recurrent layer cell
@@ -64,6 +65,20 @@ class RNNUnit(nn.Module):
         hidden = self.non_linearity(hidden)
 
         return hidden
+
+    def init_weights_uniform(self):
+        # TODO ========================
+        # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+        # and output biases to 0 (in place). The embeddings should not use a bias vector.
+        # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
+        # in the range [-k, k] where k is the square root of 1/hidden_size
+
+        k = math.sqrt(1/self.hidden_size)
+        nn.init.uniform_(self.i2h.weight, -k, k)
+        #nn.init.uniform_(self.i2h.bias, -k, k)
+
+        nn.init.uniform_(self.h2h.weight, -k, k)
+        nn.init.uniform_(self.h2h.bias, -k, k)
 
 
 # Problem 1
@@ -117,6 +132,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # for Pytorch to recognize these parameters as belonging to this nn.Module
         # and compute their gradients automatically. You're not obligated to use the
         # provided clones function.
+        self.init_weights_uniform()
 
     def init_weights_uniform(self):
         # TODO ========================
@@ -133,6 +149,10 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         # initialize embeddings weight
         nn.init.uniform_(self.embeddings.weight, -0.1, 0.1)
+
+        for rnn_unit in self.hidden_stack:
+            rnn_unit.init_weights_uniform()
+
 
     def init_hidden(self):
         # TODO ========================
