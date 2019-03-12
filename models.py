@@ -47,12 +47,11 @@ class RNNUnit(nn.Module):
     Class RNNUnit represents a single RNN recurrent layer cell
     """
 
-    def __init__(self, hidden_size, input_size, dropout_rate):
+    def __init__(self, hidden_size, input_size):
         super(RNNUnit, self).__init__()
         self.hidden_size = hidden_size
         self.i2h = nn.Linear(input_size, hidden_size, bias=False)
         self.h2h = nn.Linear(hidden_size, hidden_size)
-        self.dropout = nn.Dropout(dropout_rate)
         self.non_linearity = nn.Tanh()
 
     def forward(self, inputs, hidden):
@@ -64,10 +63,7 @@ class RNNUnit(nn.Module):
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
 
-        # apply dropout to the vertical outputs
-        outputs = self.dropout(hidden)  # shape (batch_size, hidden_size)
-
-        return outputs, hidden
+        return hidden
 
 
 # Problem 1
@@ -100,10 +96,9 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.embeddings = nn.Embedding(vocab_size, emb_size)
 
         # create stack of hidden layers as modules list
-        hidden_modules = [RNNUnit(hidden_size, emb_size, dropout_rate)]
-        if num_layers > 1:
-            for i in range(num_layers - 1):
-                hidden_modules.append(RNNUnit(hidden_size, hidden_size, dropout_rate))
+        hidden_modules = [RNNUnit(hidden_size, emb_size)]
+        for _ in range(max(0, num_layers - 1)):
+            hidden_modules.append(RNNUnit(hidden_size, hidden_size))
         self.hidden_stack = nn.ModuleList(hidden_modules)
 
         self.output = nn.Linear(hidden_size, self.vocab_size)
@@ -190,38 +185,35 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # will collect the output
         logits = []
 
-        for token_batch in embedded: # shape (batch_size, emb_size)
+        for token_batch in embedded:  # shape (batch_size, emb_size)
 
             # first hidden layer is connected to the embeddings layer
-
-            # output of the previous token x_{t-1}
-            layer_hidden_prev = hidden[0]
-
-            # apply the hidden layer, use embeddings as input
-            layer_output, layer_hidden = self.hidden_stack[0](self.dropout(token_batch), layer_hidden_prev)
+            layer_output = self.dropout(token_batch)
 
             # collect the output of hidden layers
-            hidden_list = [layer_hidden]
+            hidden_list = []
 
             # all other hidden layers: 2, 3 ...
-            for idx, layer in enumerate(self.hidden_stack[1:]):
+            for idx, layer in enumerate(self.hidden_stack):
 
-                # output of the previous token x_{t-1}
-                layer_hidden_prev = hidden[idx + 1]
+                # s_{t-1}
+                layer_hidden_prev = hidden[idx]
 
                 # apply the hidden layer
-                layer_output, layer_hidden = layer(layer_output, layer_hidden_prev)
+                layer_hidden = layer(layer_output, layer_hidden_prev)
+                # apply dropout to the vertical outputs
+                layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
 
                 # save output
                 hidden_list.append(layer_hidden)
 
-            # update hidden state after processing all layers for a single batch
+            # update hidden state after processing all layers for a single batch (num_layers, seq_len, hidden_size)
             hidden = torch.stack(hidden_list)
 
             # collect outputs of the last layer
             logits.append(self.output(layer_output))
 
-        # transform list of outputs to a tensor
+        # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
         logits = torch.stack(logits)
         return logits, hidden
 
