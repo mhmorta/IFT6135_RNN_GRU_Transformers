@@ -85,8 +85,10 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
     def init_weights_uniform(self):
         # TODO ========================
-        # Initialize all the weights uniformly in the range [-0.1, 0.1]
-        # and all the biases to 0 (in place)
+        # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+        # and output biases to 0 (in place). The embeddings should not use a bias vector.
+        # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
+        # in the range [-k, k] where k is the square root of 1/hidden_size
 
         # initialize output layer
         nn.init.uniform_(self.output.weight, -0.1, 0.1)
