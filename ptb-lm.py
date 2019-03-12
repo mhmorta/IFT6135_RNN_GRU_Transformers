@@ -12,7 +12,7 @@
 #    https://github.com/ceshine/examples/blob/master/word_language_model/main.py
 #    https://github.com/teganmaharaj/zoneout/blob/master/zoneout_word_ptb.py
 #    https://github.com/harvardnlp/annotated-transformer
-ض
+#
 # GENERAL INSTRUCTIONS: 
 #    - ! IMPORTANT! 
 #      Unless we're otherwise notified we will run exactly this code, importing 
@@ -93,7 +93,7 @@ np = numpy
 
 # NOTE ==============================================
 # This is where your models are imported
-from models import RNN, GRU
+from models import GRU, RNN
 from models import make_model as TRANSFORMER
 
 ##############################################################################
