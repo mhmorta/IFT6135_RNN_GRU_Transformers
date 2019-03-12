@@ -70,6 +70,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.Wh = nn.Linear(hidden_size, hidden_size) #nn.Parameter(torch.zeros(hidden_size, hidden_size))
     self.Wy = nn.Linear(hidden_size, vocab_size) #nn.Parameter(torch.zeros(hidden_size, vocab_size))
     self.embd = nn.Embedding(vocab_size, emb_size)
+    self.dropout = nn.Dropout(1 - self.dp_keep_prob)
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
@@ -145,16 +146,13 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     logits = []
     for s_index in range(self.seq_len):
         for layer in range(self.num_layers):
-            #onehot = np.eye(self.vocab_size, dtype=int)[inputs[s_index, :]]
-            #hidden = torch.matmul(hidden, self.Wh) + torch.matmul(embedded[s_index, :, :], self.Wi)
-            hidden = self.Wh(hidden) + self.Wi(embedded[s_index, :, :])
+            hidden = self.Wh(hidden) + self.Wi(self.dropout(embedded[s_index, :, :]))
             hidden = torch.tanh(torch.squeeze(hidden))
-            #logit = torch.matmul(hidden, self.Wy)
-            logit = self.Wy(hidden)
-            logits.append(logit)
+            logit = self.Wy(self.dropout(hidden)) # shape (batch_size, vocab_size)
+            logits.append(logit) # shape (seq_len, batch_size, vocab_size)
 
-    logits = torch.stack(logits, dim=0)
-    return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+    logits = torch.stack(logits)
+    return logits, hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
