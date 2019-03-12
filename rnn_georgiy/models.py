@@ -9,56 +9,31 @@ import matplotlib.pyplot as plt
 
 class RNNUnit(nn.Module):
 
-    def __init__(self, hidden_size, input_size, output_size, dropout_prob):
+    def __init__(self, hidden_size, input_size, dropout_prob):
         super(RNNUnit, self).__init__()
         self.hidden_size = hidden_size
-        self.Wx = nn.Parameter(torch.zeros(hidden_size, input_size))
-        self.Wh = nn.Parameter(torch.zeros(hidden_size, hidden_size))
-        self.Wy = nn.Parameter(torch.zeros(output_size, hidden_size))
-        self.by = nn.Parameter(torch.zeros(output_size, 1))
-        self.bh = nn.Parameter(torch.zeros(hidden_size, 1))
+        self.i2h = nn.Linear(input_size, hidden_size, bias=False)
+        self.h2h = nn.Linear(hidden_size, hidden_size)
         self.dropout = nn.Dropout(dropout_prob)
-        self.tanh = nn.Tanh()
+        self.non_linearity = nn.Tanh()
 
-        self.init_weights_uniform()
-
-    def forward(self, x, hidden=None):
+    def forward(self, inputs, hidden=None):
         """
-        :param x: 1D Tensor of shape: (emb_size)
-        :param hidden: previous hidden state (t-1) 1D tensor of shape (hidden_size)
-        :return: output: 1D Tensor: (output_size), 1D Tensor size: (hidden size)
+        :param inputs: shape: (seq_len, batch_size, input_size)
+        :param hidden: previous hidden state (t-1) 2D tensor of shape (batch_size, hidden_size)
+        :return: output: shape: (seq_len, batch_size, input_size), hidden: new hidden state : shape (batch_size, hidden_size)
         """
         if hidden is None:
             hidden = self.init_hidden()
 
-        # [x, h_t-1, 1]
-        combined_input = torch.cat((torch.cat((x, hidden), 0), torch.ones(1)), 0)
+        hidden = self.h2h(hidden) + self.i2h(inputs)
+        hidden = self.non_linearity(hidden)
+        logit = self.dropout(hidden)  # shape (seq_len, batch_size, hidden_size)
 
-        # [Wx, Wh, bh]
-        combined_input_hidden_params = torch.cat((torch.cat((self.Wx, self.Wh), 1), self.bh), 1)
-
-        # [Wy, by]
-        combined_output_params = torch.cat((self.Wy, self.by), 1)
-
-        # fully connected linear layer with dropout
-        # [Wy, by] * [h_t-1, 1]
-        hidden_augmented = torch.cat((self.dropout(hidden), torch.ones(1)), 0)
-        output = torch.matmul(combined_output_params, hidden_augmented)
-
-        # update hidden
-        # h_t = tanh(Wx * x + Wh * h_t-1 + bh) = tanh([Wx, Wh, bh] * [x, h_t-1, 1])
-        hidden = self.tanh(torch.matmul(combined_input_hidden_params, combined_input))
-
-        # apply dropout to the output and return
-        return self.dropout(output), hidden
+        return logit, hidden
 
     def init_hidden(self):
-        return torch.zeros(self.hidden_size)
-
-    def init_weights_uniform(self):
-        nn.init.uniform_(self.Wx, -0.1, 0.1)
-        nn.init.uniform_(self.Wh, -0.1, 0.1)
-        nn.init.uniform_(self.Wy, -0.1, 0.1)
+        return torch.zeros(self.batch_size, self.hidden_size)
 
 
 # Problem 1
@@ -84,21 +59,18 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.vocab_size = vocab_size
         self.num_layers = num_layers
 
-        self.hidden_linear_layer_size = hidden_size * 2
-
         dropout_rate = 1 - dp_keep_prob
 
         self.embeddings = nn.Embedding(vocab_size, emb_size)
+        self.dropout = nn.Dropout(dropout_rate)
 
-        hidden_modules = [RNNUnit(hidden_size, emb_size, self.hidden_linear_layer_size, dropout_rate)]
+        hidden_modules = [RNNUnit(hidden_size, emb_size, dropout_rate)]
         if num_layers > 1:
             for i in range(num_layers - 1):
-                hidden_modules.append(RNNUnit(hidden_size, hidden_size, self.hidden_linear_layer_size, dropout_rate))
+                hidden_modules.append(RNNUnit(hidden_size, hidden_size, dropout_rate))
         self.hidden_stack = nn.ModuleList(hidden_modules)
 
-        self.output = nn.Linear(self.hidden_linear_layer_size, self.vocab_size)
-
-        # self.
+        self.output = nn.Linear(hidden_size, self.vocab_size)
 
         # TODO ========================
         # Initialization of the parameters of the recurrent and fc layers.
@@ -120,14 +92,13 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # Initialize all the weights uniformly in the range [-0.1, 0.1]
         # and all the biases to 0 (in place)
 
-        # init hidden layer
-        for module in self.hidden_stack:
-            module.init_weights_uniform()
 
         # init output layer
         nn.init.uniform_(self.output.weight, -0.1, 0.1)
         # override the default init, reset to zeros
         nn.init.zeros_(self.output.bias)
+
+        nn.init.uniform_(self.embeddings.weight, -0.1, 0.1)
 
 
     def init_hidden(self):
@@ -178,19 +149,24 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         # NOTE: for the first implementation consider inputs as 1D tensor of shape (seq_len)
         # once we get it working we will implement batch mode
-        embedded = self.embd(inputs)  # shape (seq_len, emb_size)
-
-        for token_index in range(self.seq_len):
-            x = embedded[token_index]  # shape (emb_size)
+        embedded = self.embeddings(inputs)  # shape (seq_len, batch_size, emb_size)
+        hidden_list = []
+        logits = []
+        for token_batch in embedded: # shape (batch_size, emb_size)
             # first hidden layer
-            output, layer_hidden = self.hidden_stack[0].forward(x, hidden[0])
-
+            layer_hidden_prev = hidden[0]
+            layer_output, layer_hidden = self.hidden_stack[0](self.dropout(token_batch), layer_hidden_prev)
+            hidden_list.append(layer_hidden)
             for idx, layer in enumerate(self.hidden_stack[1:]):
-                layer_hidden = hidden[idx+1]
-                output, layer_hidden = layer.forward(output, layer_hidden)
+                layer_hidden_prev = hidden[idx + 1]
+                layer_output, layer_hidden = layer(layer_output, layer_hidden_prev)
+                hidden_list.append(layer_hidden)
 
+            logits.append(self.output(layer_output))
 
-        return self.output(output), hidden
+        logits = torch.stack(logits)
+        hidden = torch.stack(hidden_list)
+        return logits, hidden
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
