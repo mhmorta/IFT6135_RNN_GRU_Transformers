@@ -373,13 +373,29 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units 
+        self.h = n_heads
+        self.attention = None
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
         # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
-        
+
+        k = math.sqrt(1 / n_units)
+
+        self.w_q = nn.Linear(n_units, n_units)
+        self.w_k = nn.Linear(n_units, n_units)
+        self.w_v = nn.Linear(n_units, n_units)
+
+        nn.init.uniform_(self.w_q.weight, -k, k)
+        nn.init.uniform_(self.w_k.weight, -k, k)
+        nn.init.uniform_(self.w_v.weight, -k, k)
+
+        self.dropout = nn.Dropout(dropout)
+
+
+
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
         # query, key, and value all have size: (batch_size, seq_len, self.n_units)
@@ -387,13 +403,38 @@ class MultiHeadedAttention(nn.Module):
         # As described in the .tex, apply input masking to the softmax 
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
+        if mask in not None:
+        	mask = mask.unsqueeze(1)
 
-        return # size: (batch_size, seq_len, self.n_units)
+        bs = query.size(0)
+
+        k = self.k_linear(key).view(bs, -1, self.h, self.d_k)
+        q = self.q_linear(query).view(bs, -1, self.h, self.d_k)
+        v = self.v_linear(value).view(bs, -1, self.h, self.d_k)
+
+
+        k = k.transpose(1, 2)
+        q = q.transpose(1, 2)
+        v = v.transpose(1, 2)
+
+
+        x, self.attention = ScaledDotProductAttention(q, k, v, mask, self.dropout)
+        x = x.transpose().contiguous().view(bs, -1, self.h, self.d_k)
+        return self.linear[-1](x) # size: (batch_size, seq_len, self.n_units)
 
 
 
 
-
+	def ScaledDotProductAttention(query, key, value, mask = None, dropout=None):
+		''' Scaled Dot-Product Attention '''
+		d_k = query.size(-1)
+		scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+		if mask is not None:
+			scores = scores.masked_fill(mask == 0, -1e9)
+		p_attn = F.softmax(scores, dim = -1)
+		if dropout is not None:
+			p_attn = dropout(p_attn)
+		return torch.matmul(p_attn, value), p_attn
 
 #----------------------------------------------------------------------------------
 # The encodings of elements of the input sequence
