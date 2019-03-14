@@ -268,6 +268,63 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
 
 # Problem 2
+
+class GRUUnit(nn.Module):
+    def __init__(self, hidden_size, input_size):
+        super(GRUUnit, self).__init__()
+        self.hidden_size = hidden_size
+
+        self.i2r = nn.Linear(input_size, hidden_size)
+        self.i2z = nn.Linear(input_size, hidden_size)
+
+        self.h2r = nn.Linear(hidden_size, hidden_size, bias=False)
+        self.h2z = nn.Linear(hidden_size, hidden_size, bias=False)
+
+        self.i2h = nn.Linear(input_size, hidden_size)
+        self.h2h = nn.Linear(input_size, hidden_size, bias=False)
+
+        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, inputs, hidden):
+        """
+        :param inputs: shape: (batch_size, input_size)
+        :param hidden: previous hidden state (t-1) 2D tensor of shape (batch_size, hidden_size)
+        :return: output: shape: (batch_size, input_size), hidden: new hidden state : shape (batch_size, hidden_size)
+        """
+        hidden = self.h2h(hidden) + self.i2h(inputs)
+        hidden = self.non_linearity(hidden)
+
+
+        r = self.sigmoid(self.i2r(inputs) + self.h2r(hidden))
+        z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
+        h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
+        hidden = (1 - z) * h1 + z * hidden
+
+        return hidden
+
+    def init_weights_uniform(self):
+        # TODO ========================
+        # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+        # and output biases to 0 (in place). The embeddings should not use a bias vector.
+        # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
+        # in the range [-k, k] where k is the square root of 1/hidden_size
+
+        k = math.sqrt(1/self.hidden_size)
+
+        nn.init.uniform_(self.i2h.weight, -k, k)
+        nn.init.uniform_(self.i2r.weight, -k, k)
+        nn.init.uniform_(self.i2z.weight, -k, k)
+
+        nn.init.uniform_(self.i2h.bias, -k, k)
+        nn.init.uniform_(self.i2r.bias, -k, k)
+        nn.init.uniform_(self.i2z.bias, -k, k)
+
+        nn.init.uniform_(self.h2h.weight, -k, k)
+        nn.init.uniform_(self.h2r.weight, -k, k)
+        nn.init.uniform_(self.h2z.weight, -k, k)
+
+
 class GRU(nn.Module): # Implement a stacked GRU RNN
   """
   Follow the same instructions as for RNN (above), but use the equations for 
