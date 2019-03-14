@@ -274,7 +274,7 @@ class GRUUnit(nn.Module):
         super(GRUUnit, self).__init__()
         self.hidden_size = hidden_size
 
-        self.i2r = nn.Linear(input_size, hidden_size)
+        self.i2r = nn.Linear(input_size, hidden_size)  # TODO i think biases should be false here instead
         self.i2z = nn.Linear(input_size, hidden_size)
 
         self.h2r = nn.Linear(hidden_size, hidden_size, bias=False)
@@ -364,9 +364,8 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         # initialize embeddings weight
         nn.init.uniform_(self.embeddings.weight, -0.1, 0.1)
 
-        for rnn_unit in self.hidden_stack:
-            rnn_unit.init_weights_uniform()
-
+        for gru_unit in self.hidden_stack:
+            gru_unit.init_weights_uniform()
 
     def init_hidden(self):
 
