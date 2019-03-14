@@ -281,7 +281,7 @@ class GRUUnit(nn.Module):
         self.h2z = nn.Linear(hidden_size, hidden_size, bias=False)
 
         self.i2h = nn.Linear(input_size, hidden_size)
-        self.h2h = nn.Linear(input_size, hidden_size, bias=False)
+        self.h2h = nn.Linear(hidden_size, hidden_size, bias=False)
 
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
@@ -292,10 +292,6 @@ class GRUUnit(nn.Module):
         :param hidden: previous hidden state (t-1) 2D tensor of shape (batch_size, hidden_size)
         :return: output: shape: (batch_size, input_size), hidden: new hidden state : shape (batch_size, hidden_size)
         """
-        hidden = self.h2h(hidden) + self.i2h(inputs)
-        hidden = self.non_linearity(hidden)
-
-
         r = self.sigmoid(self.i2r(inputs) + self.h2r(hidden))
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
@@ -325,33 +321,99 @@ class GRUUnit(nn.Module):
         nn.init.uniform_(self.h2z.weight, -k, k)
 
 
-class GRU(nn.Module): # Implement a stacked GRU RNN
-  """
-  Follow the same instructions as for RNN (above), but use the equations for 
-  GRU, not Vanilla RNN.
-  """
-  def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
-    super(GRU, self).__init__()
+class GRU(nn.Module):  # Implement a stacked GRU RNN
+    """
+    Follow the same instructions as for RNN (above), but use the equations for
+    GRU, not Vanilla RNN.
+    """
 
-    # TODO ========================
+    def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
+        super(GRU, self).__init__()
 
-  def init_weights_uniform(self):
-    # TODO ========================
-    pass
+        self.hidden_size = hidden_size
+        self.emb_size = emb_size
+        self.seq_len = seq_len
+        self.batch_size = batch_size
+        self.vocab_size = vocab_size
+        self.num_layers = num_layers
 
-  def init_hidden(self):
-    # TODO ========================
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+        # actual dropout rate
+        dropout_rate = 1 - dp_keep_prob
+        self.dropout = nn.Dropout(dropout_rate)
 
-  def forward(self, inputs, hidden):
-    # TODO ========================
-    logits = []
-    return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+        self.embeddings = nn.Embedding(vocab_size, emb_size)
 
-  def generate(self, input, hidden, generated_seq_len):
-    # TODO ========================
-    samples = []
-    return samples
+        # create stack of hidden layers as modules list
+        hidden_modules = [GRUUnit(hidden_size, emb_size)]
+        for _ in range(max(0, num_layers - 1)):
+            hidden_modules.append(GRUUnit(hidden_size, hidden_size))
+        self.hidden_stack = nn.ModuleList(hidden_modules)
+
+        self.output = nn.Linear(hidden_size, self.vocab_size)
+
+        self.init_weights_uniform()
+
+    def init_weights_uniform(self):
+
+        # initialize output layer
+        nn.init.uniform_(self.output.weight, -0.1, 0.1)
+
+        # override the default init, reset to zeros
+        nn.init.zeros_(self.output.bias)
+
+        # initialize embeddings weight
+        nn.init.uniform_(self.embeddings.weight, -0.1, 0.1)
+
+        for rnn_unit in self.hidden_stack:
+            rnn_unit.init_weights_uniform()
+
+
+    def init_hidden(self):
+
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
+
+    def forward(self, inputs, hidden):
+
+        embedded = self.embeddings(inputs)  # shape (seq_len, batch_size, emb_size)
+
+        # will collect the output
+        logits = []
+
+        for token_batch in embedded:  # shape (batch_size, emb_size)
+
+            # first hidden layer is connected to the embeddings layer
+            layer_output = self.dropout(token_batch)
+
+            # collect the output of hidden layers
+            hidden_list = []
+
+            # all other hidden layers: 2, 3 ...
+            for idx, layer in enumerate(self.hidden_stack):
+                # s_{t-1}
+                layer_hidden_prev = hidden[idx]
+
+                # apply the hidden layer
+                layer_hidden = layer(layer_output, layer_hidden_prev)
+                # apply dropout to the vertical outputs
+                layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
+
+                # save output
+                hidden_list.append(layer_hidden)
+
+            # update hidden state after processing all layers for a single batch (num_layers, seq_len, hidden_size)
+            hidden = torch.stack(hidden_list)
+
+            # collect outputs of the last layer
+            logits.append(self.output(layer_output))
+
+        # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
+        logits = torch.stack(logits)
+        return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+
+    def generate(self, input, hidden, generated_seq_len):
+        # TODO ========================
+        samples = []
+        return samples
 
 
 # Problem 3
