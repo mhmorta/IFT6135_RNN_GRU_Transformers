@@ -415,6 +415,16 @@ and a linear layer followed by a softmax.
 
 #----------------------------------------------------------------------------------
 
+def ScaledDotProductAttention(query, key, value, mask = None, dropout=None):
+    d_k = query.size(-1)
+    scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, -1e9)
+    p_attn = F.softmax(scores, dim = -1)
+    if dropout is not None:
+        p_attn = dropout(p_attn)
+    return torch.matmul(p_attn, value), p_attn
+
 # TODO: implement this class
 class MultiHeadedAttention(nn.Module):
     def __init__(self, n_heads, n_units, dropout=0.1):
@@ -449,8 +459,11 @@ class MultiHeadedAttention(nn.Module):
         nn.init.uniform_(self.w_k.weight, -k, k)
         nn.init.uniform_(self.w_v.weight, -k, k)
 
-        self.dropout = nn.Dropout(dropout)
+        nn.init.uniform_(self.w_q.bias, -k, k)
+        nn.init.uniform_(self.w_k.bias, -k, k)
+        nn.init.uniform_(self.w_v.bias, -k, k)
 
+        self.dropout = nn.Dropout(dropout)
 
 
     def forward(self, query, key, value, mask=None):
@@ -460,14 +473,14 @@ class MultiHeadedAttention(nn.Module):
         # As described in the .tex, apply input masking to the softmax 
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
-        if mask in not None:
+        if mask is not None:
         	mask = mask.unsqueeze(1)
 
         bs = query.size(0)
 
-        k = self.k_linear(key).view(bs, -1, self.h, self.d_k)
-        q = self.q_linear(query).view(bs, -1, self.h, self.d_k)
-        v = self.v_linear(value).view(bs, -1, self.h, self.d_k)
+        k = self.w_k(key).view(bs, -1, self.h, self.d_k)
+        q = self.w_q(query).view(bs, -1, self.h, self.d_k)
+        v = self.w_v(value).view(bs, -1, self.h, self.d_k)
 
 
         k = k.transpose(1, 2)
@@ -476,22 +489,11 @@ class MultiHeadedAttention(nn.Module):
 
 
         x, self.attention = ScaledDotProductAttention(q, k, v, mask, self.dropout)
-        x = x.transpose().contiguous().view(bs, -1, self.h, self.d_k)
-        return self.linear[-1](x) # size: (batch_size, seq_len, self.n_units)
+        x = x.transpose(1,2).contiguous().view(bs, -1, self.h, self.d_k)
+        return self.linears[-1](x) # size: (batch_size, seq_len, self.n_units)
 
 
 
-
-	def ScaledDotProductAttention(query, key, value, mask = None, dropout=None):
-		''' Scaled Dot-Product Attention '''
-		d_k = query.size(-1)
-		scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
-		if mask is not None:
-			scores = scores.masked_fill(mask == 0, -1e9)
-		p_attn = F.softmax(scores, dim = -1)
-		if dropout is not None:
-			p_attn = dropout(p_attn)
-		return torch.matmul(p_attn, value), p_attn
 
 #----------------------------------------------------------------------------------
 # The encodings of elements of the input sequence
