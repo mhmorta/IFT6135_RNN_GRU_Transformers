@@ -9,6 +9,6 @@ denis_rnn/data/*
 .csv#
 ./Experiments/*
 */development/*
-RNN_ADAM_*
-GRU_SGD_LR_*
+RNN_*
+GRU_*
 
