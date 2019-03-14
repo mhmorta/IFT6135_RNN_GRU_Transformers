@@ -274,7 +274,7 @@ class GRUUnit(nn.Module):
         super(GRUUnit, self).__init__()
         self.hidden_size = hidden_size
 
-        self.i2r = nn.Linear(input_size, hidden_size)  # TODO i think biases should be false here instead
+        self.i2r = nn.Linear(input_size, hidden_size)
         self.i2z = nn.Linear(input_size, hidden_size)
 
         self.h2r = nn.Linear(hidden_size, hidden_size, bias=False)
