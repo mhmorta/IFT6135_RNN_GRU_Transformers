@@ -147,6 +147,9 @@ parser.add_argument('--evaluate', action='store_true',
                     completed ALL hyperparameter tuning on the validation set.\
                     Note we are not requiring you to do this.")
 
+parser.add_argument('--timestep_loss', type=bool, default=False,
+                    help="Add a timestep computation for Question 5.1")
+
 # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
 # which helps for reproducibility)
 parser.add_argument('--seed', type=int, default=1111,
@@ -400,6 +403,12 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         # and all time-steps of the sequences.
         # For problem 5.3, you will (instead) need to compute the average loss 
         # at each time-step separately.
+        seq_losses = []
+        if args.timestep_loss:
+            for output, target in zip(outputs, targets):
+                l = loss_fn(output, target)
+                seq_losses.append(l)
+
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
         costs += loss.data.item() * model.seq_len
         losses.append(costs)

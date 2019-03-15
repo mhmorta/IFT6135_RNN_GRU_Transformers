@@ -75,7 +75,6 @@ class RNNUnit(nn.Module):
 
         k = math.sqrt(1/self.hidden_size)
         nn.init.uniform_(self.i2h.weight, -k, k)
-        #nn.init.uniform_(self.i2h.bias, -k, k)
 
         nn.init.uniform_(self.h2h.weight, -k, k)
         nn.init.uniform_(self.h2h.bias, -k, k)
