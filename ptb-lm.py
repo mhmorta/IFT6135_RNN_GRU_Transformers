@@ -403,6 +403,11 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         # and all time-steps of the sequences.
         # For problem 5.3, you will (instead) need to compute the average loss 
         # at each time-step separately.
+
+        # todo
+        # i dont understand whether we need to accumulate the losses through time-steps
+        # like it is done for the loss across the sequences of mini-batches
+        # if so, move it outside the loop
         seq_losses = []
         if args.timestep_loss:
             for output, target in zip(outputs, targets):
