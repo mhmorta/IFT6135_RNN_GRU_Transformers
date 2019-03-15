@@ -11,4 +11,5 @@ denis_rnn/data/*
 */development/*
 RNN_*
 GRU_*
+TRANSFORMER_*
 
