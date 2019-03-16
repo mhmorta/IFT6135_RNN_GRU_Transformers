@@ -336,7 +336,9 @@ else:
 
 #todo new code to load model
 if args.compute_gradient:
-    model.load_state_dict(torch.load('reports/RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_4/best_params.pt', map_location=device))
+    model.load_state_dict(torch.load('results/{}/best_params.pt'.
+        format('RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_4'),
+                                     map_location=device))
 
 model = model.to(device)
 
