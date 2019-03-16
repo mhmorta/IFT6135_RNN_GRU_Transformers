@@ -63,8 +63,8 @@ class RNNUnit(nn.Module):
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
         # no gradient is computed if we don't call requires_grad_(True)
-        h = hidden.clone().detach().requires_grad_(True)
-        return h
+        hidden = hidden.clone().detach().requires_grad_(True)
+        return hidden
 
     def init_weights_uniform(self):
         # TODO ========================
@@ -102,7 +102,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.num_layers = num_layers
-        self.hidden_backprop = []
+        self.hiddens = []
 
         # actual dropout rate
         dropout_rate = 1 - dp_keep_prob
@@ -214,28 +214,25 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
             # hidden layers: 1, 2, 3 ...
             for idx, layer in enumerate(self.hidden_stack):
-
                 # s_{t-1}
                 layer_hidden_prev = hidden[idx]
-
                 # apply the hidden layer
                 layer_hidden = layer(layer_output, layer_hidden_prev)
                 # apply dropout to the vertical outputs
                 layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
-
                 # save output
                 hidden_list.append(layer_hidden)
 
-            self.hidden_backprop.append(hidden_list)
-            # update hidden state after processing all layers for a single batch (num_layers, seq_len, hidden_size)
-            hidden = torch.stack(hidden_list)
+            # update hidden state after processing all layers for a single batch
+            # (num_layers, seq_len, hidden_size)
+            self.hiddens.append(torch.stack(hidden_list))
 
             # collect outputs of the last layer
             logits.append(self.output(layer_output))
 
         # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
         logits = torch.stack(logits)
-        return logits, hidden
+        return logits, self.hiddens[-1]
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================

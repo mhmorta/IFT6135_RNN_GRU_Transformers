@@ -334,6 +334,10 @@ elif args.model == 'TRANSFORMER':
 else:
     print("Model type not recognized.")
 
+#todo new code to load model
+if args.compute_gradient:
+    model.load_state_dict(torch.load('reports/RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_4/best_params.pt', map_location=device))
+
 model = model.to(device)
 
 # LOSS FUNCTION
@@ -417,23 +421,22 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         iters += model.seq_len
         if args.debug:
             print(step, loss)
-        if is_train:  # Only update parameters if training 
-            # todo computing gradient norms
-            if args.compute_gradient:
-                loss2 = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
-                loss2.backward()
-                norms = np.zeros((model.seq_len, model.num_layers))
-                if args.model in ['RNN', 'GRU']:
-                    for timestep_idx, hb_timestep in enumerate(model.hidden_backprop):
-                        for layer_idx, hb_layer in enumerate(hb_timestep):
-                          norms[timestep_idx][layer_idx] = hb_layer.data.norm()
-                gn_path = os.path.join(args.save_dir, 'gradient_norms.npy')
-                np.save(gn_path, norms)
-                exit()
 
+        # todo computing gradient norms
+        if args.compute_gradient:
+            loss2 = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
+            loss2.backward()
+            norms = np.zeros((model.seq_len, model.num_layers))
+            if args.model in ['RNN', 'GRU']:
+                for timestep_idx, hb_timestep in enumerate(model.hiddens):
+                    for layer_idx, hb_layer in enumerate(hb_timestep):
+                      norms[timestep_idx][layer_idx] = hb_layer.data.norm()
+            gn_path = os.path.join(args.save_dir, 'gradient_norms.npy')
+            np.save(gn_path, norms)
+            exit()
 
+        if is_train:  # Only update parameters if training
             loss.backward()
-
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             if args.optimizer == 'ADAM':
                 optimizer.step()
@@ -482,8 +485,10 @@ for epoch in range(num_epochs):
         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
         lr = lr * lr_decay  # decay lr if it is time
 
-    # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
+    # todo remove
+    if not args.compute_gradient:
+        # RUN MODEL ON TRAINING DATA
+        train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
     val_ppl, val_loss, seq_loss = run_epoch(model, valid_data)
