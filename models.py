@@ -63,7 +63,8 @@ class RNNUnit(nn.Module):
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
         # no gradient is computed if we don't call requires_grad_(True)
-        hidden = hidden.clone().detach().requires_grad_(True)
+        #hidden = hidden.clone().detach().requires_grad_(True)
+        hidden.retain_grad()
         return hidden
 
     def init_weights_uniform(self):
@@ -293,7 +294,7 @@ class GRUUnit(nn.Module):
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
         hidden = (1 - z) * h1 + z * hidden
-
+        hidden.retain_grad()
         return hidden
 
     def init_weights_uniform(self):
@@ -333,6 +334,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.num_layers = num_layers
+        self.hiddens = []
 
         # actual dropout rate
         dropout_rate = 1 - dp_keep_prob
@@ -396,15 +398,16 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
                 # save output
                 hidden_list.append(layer_hidden)
 
-            # update hidden state after processing all layers for a single batch (num_layers, seq_len, hidden_size)
-            hidden = torch.stack(hidden_list)
+            # update hidden state after processing all layers for a single batch
+            # (num_layers, seq_len, hidden_size)
+            self.hiddens.append(torch.stack(hidden_list))
 
             # collect outputs of the last layer
             logits.append(self.output(layer_output))
 
         # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
         logits = torch.stack(logits)
-        return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+        return logits.view(self.seq_len, self.batch_size, self.vocab_size), self.hiddens[-1]
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
