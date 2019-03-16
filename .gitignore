@@ -9,7 +9,4 @@ denis_rnn/data/*
 .csv#
 ./Experiments/*
 */development/*
-RNN_*
-GRU_*
-TRANSFORMER_*
 
