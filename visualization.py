@@ -11,19 +11,35 @@ import re
 
 def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment ):
     plt.figure(1)
-    plt.plot(range(len(train_losses)), train_losses, label="Train Losses")
-    plt.plot(range(len(val_losses)), val_losses, label="Validation Losses")
+    train_losses = np.array(train_losses)
+    train_losses_index = [(i % 1327 == 0) for i in range(len(train_losses))]
+    val_losses = np.array(val_losses)
+    val_losses_index = [(i % 105 == 0) for i in range(len(val_losses))]
+
+    epochs = range(40)
+    plt.plot(epochs, train_losses[train_losses_index], label="Train Losses")
+    plt.scatter(epochs, train_losses[train_losses_index], label="Train Losses")
+    plt.plot(epochs, val_losses[val_losses_index], label="Validation Losses")
+    plt.scatter(epochs, val_losses[val_losses_index], label="Validation Losses")
+
     plt.xlabel("Epoch number")
     plt.ylabel("Loss value")
+    plt.xticks(epochs,rotation='vertical')
+
+    plt.autoscale(enable=True, axis='both', tight=None)
     plt.suptitle(experiment, fontsize=10)
     plt.legend()
 
     plt.figure(2)
     plt.plot(epoch_times, train_ppls, label="Train PPL" )
+    plt.scatter(epoch_times, train_ppls, label="Train PPL" )
     plt.plot(epoch_times, val_ppls, label="Validation PPL" )
-    plt.xlabel("Epoch number")
+    plt.scatter(epoch_times, val_ppls, label="Validation PPL" )
+    plt.xlabel("Wall-clock-time")
+    plt.xticks(epoch_times,rotation='vertical')
     plt.ylabel("PPL value")
     plt.suptitle(experiment, fontsize=10)
+    plt.autoscale(enable=True, axis='both', tight=None)
     plt.legend()
     plt.show()
 

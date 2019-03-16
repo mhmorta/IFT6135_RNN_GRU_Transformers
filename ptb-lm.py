@@ -486,6 +486,10 @@ for epoch in range(num_epochs):
     # LOC RESULTS
     train_ppls.append(train_ppl)
     val_ppls.append(val_ppl)
+    print()
+    print(len(train_loss))
+    print(len(val_loss))
+    print()
     train_losses.extend(train_loss)
     val_losses.extend(val_loss)
     times.append(time.time() - t0)
