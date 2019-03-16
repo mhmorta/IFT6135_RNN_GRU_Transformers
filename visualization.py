@@ -7,21 +7,22 @@ from torch.autograd import Variable
 import torch
 import argparse
 import os
+import re
 
-def plots(train_losses, val_losses, train_ppls, val_ppls, experiment ):
+def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment ):
     plt.figure(1)
     plt.plot(range(len(train_losses)), train_losses, label="Train Losses")
     plt.plot(range(len(val_losses)), val_losses, label="Validation Losses")
-    plt.xlabel("epochs")
-    plt.ylabel("loss")
+    plt.xlabel("Epoch number")
+    plt.ylabel("Loss value")
     plt.suptitle(experiment, fontsize=10)
     plt.legend()
 
     plt.figure(2)
-    plt.plot(range(len(train_ppls)), train_ppls, label="Train PPL" )
-    plt.plot(range(len(val_ppls)), val_ppls, label="Validation PPL" )
-    plt.xlabel("epochs")
-    plt.ylabel("PPL")
+    plt.plot(epoch_times, train_ppls, label="Train PPL" )
+    plt.plot(epoch_times, val_ppls, label="Validation PPL" )
+    plt.xlabel("Epoch number")
+    plt.ylabel("PPL value")
     plt.suptitle(experiment, fontsize=10)
     plt.legend()
     plt.show()
@@ -38,14 +39,32 @@ def parse_args():
     args = parser.parse_args()
     argsdict = args.__dict__
 
-    lc_path = os.path.join(args.save_dir, 'learning_curves.npy')
+    lc_path  = os.path.join(args.save_dir, 'learning_curves.npy')
+    log_path = os.path.join(args.save_dir, 'log.txt')
     experiment = str.split(args.save_dir, "/")[1]
-    print
-    return lc_path, experiment;
+    
+    return lc_path, log_path, experiment;
 
-lc_path, experiment = parse_args()
+def extract_epoch_time(log_path):
+    epoch_times = []
+    epoch_string = re.compile("epoch")
+    time_string = "time (s) spent in epoch: "
+    with open(log_path) as f:
+        lines = f.readlines()
+        for line in lines:
+            if epoch_string.search(line):
+                time = float(line.strip().split(time_string)[1].split("A")[0]) #frist stripping the line, finding the part that has the time info, splitting by A which comes with "Additional..."
+                epoch_times.append(time)
+    for i in range(1, len(epoch_times)):
+        epoch_times[i] = epoch_times[i-1]+ epoch_times[i]
+    return epoch_times
+
+
+lc_path, log_path, experiment = parse_args()
 x = np.load(lc_path)[()]
 
+epoch_times = extract_epoch_time(log_path)
+
 train_ppls, val_ppls, train_losses, val_losses = [x['train_ppls'], x['val_ppls'], x['train_losses'], x['val_losses'] ]
-plots(train_losses, val_losses, train_ppls, val_ppls, experiment)
+plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment)
 
