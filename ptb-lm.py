@@ -150,6 +150,10 @@ parser.add_argument('--evaluate', action='store_true',
 parser.add_argument('--timestep_loss', type=bool, default=False,
                     help="Add a timestep computation for Question 5.1")
 
+parser.add_argument('--compute_gradient', type=bool, default=False,
+                    help="Add a timestep computation for Question 5.2")
+
+
 # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
 # which helps for reproducibility)
 parser.add_argument('--seed', type=int, default=1111,
@@ -414,7 +418,22 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         if args.debug:
             print(step, loss)
         if is_train:  # Only update parameters if training 
+            # todo computing gradient norms
+            if args.compute_gradient:
+                loss2 = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
+                loss2.backward()
+                norms = np.zeros((model.seq_len, model.num_layers))
+                if args.model in ['RNN', 'GRU']:
+                    for timestep_idx, hb_timestep in enumerate(model.hidden_backprop):
+                        for layer_idx, hb_layer in enumerate(hb_timestep):
+                          norms[timestep_idx][layer_idx] = hb_layer.data.norm()
+                gn_path = os.path.join(args.save_dir, 'gradient_norms.npy')
+                np.save(gn_path, norms)
+                exit()
+
+
             loss.backward()
+
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             if args.optimizer == 'ADAM':
                 optimizer.step()
@@ -426,6 +445,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                 print('step: ' + str(step) + '\t' \
                       + 'loss: ' + str(costs) + '\t' \
                       + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
+        # todo computing loss per timestamp
         elif args.timestep_loss:
             for output, target in zip(outputs, targets):
                 l = loss_fn(output, target)

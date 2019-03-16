@@ -3,9 +3,8 @@ import torch.nn as nn
 
 import numpy as np
 import torch.nn.functional as F
-import math, copy, time
+import math, copy
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
 
 # NOTE ==============================================
 #
@@ -63,8 +62,9 @@ class RNNUnit(nn.Module):
         """
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
-
-        return hidden
+        # no gradient is computed if we don't call requires_grad_(True)
+        h = hidden.clone().detach().requires_grad_(True)
+        return h
 
     def init_weights_uniform(self):
         # TODO ========================
@@ -102,6 +102,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.num_layers = num_layers
+        self.hidden_backprop = []
 
         # actual dropout rate
         dropout_rate = 1 - dp_keep_prob
@@ -151,7 +152,6 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         for rnn_unit in self.hidden_stack:
             rnn_unit.init_weights_uniform()
-
 
     def init_hidden(self):
         # TODO ========================
@@ -212,7 +212,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             # collect the output of hidden layers
             hidden_list = []
 
-            # all other hidden layers: 2, 3 ...
+            # hidden layers: 1, 2, 3 ...
             for idx, layer in enumerate(self.hidden_stack):
 
                 # s_{t-1}
@@ -226,6 +226,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                 # save output
                 hidden_list.append(layer_hidden)
 
+            self.hidden_backprop.append(hidden_list)
             # update hidden state after processing all layers for a single batch (num_layers, seq_len, hidden_size)
             hidden = torch.stack(hidden_list)
 
