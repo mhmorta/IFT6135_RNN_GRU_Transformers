@@ -46,10 +46,22 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     plt.xlabel("Wall-clock-time")
     plt.xticks(epoch_times,rotation='vertical')
     plt.ylabel("PPL value")
-    plt.suptitle(experiment + '\n' + 'PPL', fontsize=10)
+    plt.suptitle(experiment + '\n' + 'PPL over wall-clock-time', fontsize=10)
     plt.legend()
     plt.savefig(directory+'/2.png')
 
+
+    plt.figure(3, figsize=(16, 9))
+    plt.plot(epochs, train_ppls, label="Train PPL" )
+    plt.scatter(epochs, train_ppls, label="Train PPL" )
+    plt.plot(epochs, val_ppls, label="Validation PPL" )
+    plt.scatter(epochs, val_ppls, label="Validation PPL" )
+    plt.xlabel("Wall-clock-time")
+    plt.xticks(epochs,rotation='vertical')
+    plt.ylabel("PPL value")
+    plt.suptitle(experiment + '\n' + 'PPL over epcoh#', fontsize=10)
+    plt.legend()
+    plt.savefig(directory+'/3.png')
     # plt.show()
 
 def parse_args(directory):
