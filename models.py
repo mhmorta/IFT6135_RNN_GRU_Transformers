@@ -261,10 +261,54 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
             - Sampled sequences of tokens
                         shape: (generated_seq_len, batch_size)
         """
+        samples = []
+        samples.append(input)
+        for i in range(generated_seq_len):
+            output, hidden = self.generate_batch(input, hidden)
+            samples.append(output)
+            input = output
+        return torch.stack(samples) # shape (generated_seq_len, batch_size)
 
-        return
-        #todo uncomment return samples
+    def generate_batch(self, input, hidden):
+        """
+        Forward pass for a minibatch
+        without applying dropout
 
+        :param input: A mini-batch of input tokens
+                            shape: (batch_size)
+        :param hidden: The initial hidden states for every layer of the stacked RNN.
+                            shape: (num_layers, batch_size, hidden_size)
+        :return: - output: A mini-batch of input tokens
+                            shape: (batch_size)
+                 - hidden: updated states of hidden layers
+        """
+
+
+        embedded = self.dropout(self.embeddings(input))  # shape (batch_size, emb_size)
+
+        # first hidden layer is connected to the embeddings layer
+        layer_output = embedded
+
+        hidden_list = []
+
+        for idx, layer in enumerate(self.hidden_stack):
+
+            layer_hidden_prev = hidden[idx]
+
+            # apply the hidden layer
+            layer_hidden = layer(layer_output, layer_hidden_prev)
+
+            # vertical outputs
+            layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
+
+            # save output
+            hidden_list.append(layer_hidden)
+
+        # outputs of the last layer
+        values, output = torch.max(torch.softmax(self.output(layer_output), dim=1), 1) # shape (batch_size, vocab_size)
+        # update hidden state after processing all layers for a single batch (num_layers, hidden_size)
+        hidden = torch.stack(hidden_list)
+        return output, hidden
 
 # Problem 2
 
