@@ -162,10 +162,10 @@ argsdict['code_file'] = sys.argv[0]
 # Use the model, optimizer, and the flags passed to the script to make the
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
-flags = [flag.lstrip('--') for flag in sys.argv[1:]]
+# todo added replace('/','') to be able to save in the subdirectory
+flags = [flag.lstrip('--').replace('/', '') for flag in sys.argv[1:]]
 
-# todo added / after save_dir
-experiment_path = os.path.join(args.save_dir + '/' + '_'.join([argsdict['model'],
+experiment_path = os.path.join(args.save_dir + '_'.join([argsdict['model'],
                                                          argsdict['optimizer']]
                                                         + flags))
 
@@ -486,6 +486,10 @@ for epoch in range(num_epochs):
     # LOC RESULTS
     train_ppls.append(train_ppl)
     val_ppls.append(val_ppl)
+    print()
+    print(len(train_loss))
+    print(len(val_loss))
+    print()
     train_losses.extend(train_loss)
     val_losses.extend(val_loss)
     times.append(time.time() - t0)
