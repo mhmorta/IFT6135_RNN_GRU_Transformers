@@ -11,6 +11,11 @@ import re
 import glob
 import math
 
+def saveFig(address):
+    if os.path.isfile(address):
+        os.remove(address)
+    plt.savefig(address) 
+
 def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment, directory ):
     epochs = range(40)
     train_losses = np.array(train_losses)
@@ -28,31 +33,29 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     plt.xticks(epochs,rotation='vertical')
     plt.suptitle(experiment+ '\n' + "Training and Validation losses at the end of each epoch", fontsize=13)
     plt.legend()
-    plt.savefig(directory+'/losees.png')
+    saveFig(directory+'/losees.png')
     plt.close()
 
     plt.figure(2, figsize=(20, 12))
-    plt.plot(epoch_times, np.log(train_ppls), label="Train PPL", marker='o' )
-    plt.plot(epoch_times, np.log(val_ppls), label="Validation PPL" , marker='o' )
+    plt.plot(epoch_times, np.clip(train_ppls, 50, 350), label="Train PPL", marker='o' )
+    plt.plot(epoch_times, np.clip(val_ppls, 50, 350), label="Validation PPL" , marker='o' )
     plt.xlabel("Wall-clock-time")
     plt.xticks(epoch_times,rotation='vertical')
     plt.ylabel("PPL value")
-    plt.suptitle(experiment + '\n' + 'log(PPL) w.r.t the wall-clock-time', fontsize=13)
+    plt.suptitle(experiment + '\n' + '(Clipped) PPL between w.r.t the wall-clock-time', fontsize=13)
     plt.legend()
-    plt.savefig(directory+'/PPL_wrt_eopch#.png')
+    saveFig(directory+'/PPL_wrt_wct.png')
     plt.close()
 
-
     plt.figure(3, figsize=(20, 12))
-    plt.plot(epochs, np.log(train_ppls), label="Train PPL", marker='o' )
-    plt.plot(epochs, np.log(val_ppls), label="Validation PPL", marker='o' )
+    plt.plot(epochs, np.clip(train_ppls, 50, 350 ), label="Train PPL", marker='o' )
+    plt.plot(epochs, np.clip(val_ppls, 50, 350), label="Validation PPL", marker='o' )
     plt.xlabel("Wall-clock-time")
     plt.xticks(epochs,rotation='vertical')
     plt.ylabel("PPL value")
-    plt.suptitle(experiment + '\n' + 'log(PPL) w.r.t the epcoh number', fontsize=13)
+    plt.suptitle(experiment + '\n' + '(Clipped) PPL w.r.t the epcoh number', fontsize=13)
     plt.legend()
-    plt.savefig(directory+'/PPL_wrt_wct.png')
-    # plt.show()
+    saveFig(directory+'/PPL_wrt_eopch#.png')
     plt.close()
 
 def parse_args(directory):
@@ -60,7 +63,7 @@ def parse_args(directory):
     log_path = os.path.join(directory, 'log.txt')
     experiment = str.split(directory, "/")[1]
     
-    return lc_path, log_path, experiment;
+    return lc_path, log_path, experiment
 
 def extract_epoch_time(log_path):
     epoch_times = []
