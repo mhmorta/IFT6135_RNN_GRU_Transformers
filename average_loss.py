@@ -1,7 +1,7 @@
 #!/bin/python
 # coding: utf-8
 
-# Code outline/scaffold for 
+# Code outline/scaffold for
 # ASSIGNMENT 2: RNNs, Attention, and Optimization
 # By Tegan Maharaj, David Krueger, and Chin-Wei Huang
 # IFT6135 at University of Montreal
@@ -13,33 +13,33 @@
 #    https://github.com/teganmaharaj/zoneout/blob/master/zoneout_word_ptb.py
 #    https://github.com/harvardnlp/annotated-transformer
 #
-# GENERAL INSTRUCTIONS: 
-#    - ! IMPORTANT! 
-#      Unless we're otherwise notified we will run exactly this code, importing 
-#      your models from models.py to test them. If you find it necessary to 
-#      modify or replace this script (e.g. if you are using TensorFlow), you 
-#      must justify this decision in your report, and contact the TAs as soon as 
-#      possible to let them know. You are free to modify/add to this script for 
-#      your own purposes (e.g. monitoring, plotting, further hyperparameter 
-#      tuning than what is required), but remember that unless we're otherwise 
-#      notified we will run this code as it is given to you, NOT with your 
+# GENERAL INSTRUCTIONS:
+#    - ! IMPORTANT!
+#      Unless we're otherwise notified we will run exactly this code, importing
+#      your models from models.py to test them. If you find it necessary to
+#      modify or replace this script (e.g. if you are using TensorFlow), you
+#      must justify this decision in your report, and contact the TAs as soon as
+#      possible to let them know. You are free to modify/add to this script for
+#      your own purposes (e.g. monitoring, plotting, further hyperparameter
+#      tuning than what is required), but remember that unless we're otherwise
+#      notified we will run this code as it is given to you, NOT with your
 #      modifications.
-#    - We encourage you to read and understand this code; there are some notes 
+#    - We encourage you to read and understand this code; there are some notes
 #      and comments to help you.
-#    - Typically, all of your code to submit should be written in models.py; 
+#    - Typically, all of your code to submit should be written in models.py;
 #      see further instructions at the top of that file / in TODOs.
-#          - RNN recurrent unit 
+#          - RNN recurrent unit
 #          - GRU recurrent unit
 #          - Multi-head attention for the Transformer
-#    - Other than this file and models.py, you will probably also write two 
-#      scripts. Include these and any other code you write in your git repo for 
+#    - Other than this file and models.py, you will probably also write two
+#      scripts. Include these and any other code you write in your git repo for
 #      submission:
 #          - Plotting (learning curves, loss w.r.t. time, gradients w.r.t. hiddens)
-#          - Loading and running a saved model (computing gradients w.r.t. hiddens, 
+#          - Loading and running a saved model (computing gradients w.r.t. hiddens,
 #            and for sampling from the model)
 
-# PROBLEM-SPECIFIC INSTRUCTIONS:   
-#    - For Problems 1-3, paste the code for the RNN, GRU, and Multi-Head attention 
+# PROBLEM-SPECIFIC INSTRUCTIONS:
+#    - For Problems 1-3, paste the code for the RNN, GRU, and Multi-Head attention
 #      respectively in your report, in a monospace font.
 #    - For Problem 4.1 (model  comparison), the hyperparameter settings you should run are as follows:
 #          --model=RNN --optimizer=ADAM --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35 --save_best
@@ -147,11 +147,16 @@ parser.add_argument('--evaluate', action='store_true',
                     ONCE for each model setting, and only after you've \
                     completed ALL hyperparameter tuning on the validation set.\
                     Note we are not requiring you to do this.")
+# todo added new argument
+parser.add_argument('--timestep_loss', type=bool, default=False,
+                    help="Add a timestep computation for Question 5.1")
 
 # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
 # which helps for reproducibility)
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
+
+
 
 args = parser.parse_args()
 argsdict = args.__dict__
@@ -160,7 +165,7 @@ argsdict['code_file'] = sys.argv[0]
 # Use the model, optimizer, and the flags passed to the script to make the
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
-# todo added replace('/','') to be able to save in the subdirectory
+# todo added replace('\\/','') to be able to save in the subdirectory
 flags = [flag.lstrip('--').replace('/', '') for flag in sys.argv[1:]]
 
 experiment_path = os.path.join(args.save_dir + '_'.join([argsdict['model'],
@@ -381,6 +386,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     costs = 0.0
     iters = 0
     losses = []
+    seq_losses = []
 
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
@@ -399,9 +405,9 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
 
         # LOSS COMPUTATION
-        # This line currently averages across all the sequences in a mini-batch 
+        # This line currently averages across all the sequences in a mini-batch
         # and all time-steps of the sequences.
-        # For problem 5.3, you will (instead) need to compute the average loss 
+        # For problem 5.3, you will (instead) need to compute the average loss
         # at each time-step separately.
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
         costs += loss.data.item() * model.seq_len
@@ -409,7 +415,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         iters += model.seq_len
         if args.debug:
             print(step, loss)
-        if is_train:  # Only update parameters if training 
+        if is_train:  # Only update parameters if training
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             if args.optimizer == 'ADAM':
@@ -422,7 +428,12 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                 print('step: ' + str(step) + '\t' \
                       + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
                       + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
-    return np.exp(costs / iters), losses
+        elif args.timestep_loss:
+            for output, target in zip(outputs, targets):
+                l = loss_fn(output, target)
+                seq_losses.append(l.data.item())
+
+    return np.exp(costs / iters), losses, seq_losses
 
 
 ###############################################################################
@@ -454,10 +465,10 @@ for epoch in range(num_epochs):
         lr = lr * lr_decay  # decay lr if it is time
 
     # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss = run_epoch(model, train_data, True, lr)
+    train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss = run_epoch(model, valid_data)
+    val_ppl, val_loss, seq_loss = run_epoch(model, valid_data)
 
     # SAVE MODEL IF IT'S THE BEST SO FAR
     if val_ppl < best_val_so_far:
@@ -467,10 +478,10 @@ for epoch in range(num_epochs):
             torch.save(model.state_dict(), os.path.join(args.save_dir, 'best_params.pt'))
         # NOTE ==============================================
         # You will need to load these parameters into the same model
-        # for a couple Problems: so that you can compute the gradient 
+        # for a couple Problems: so that you can compute the gradient
         # of the loss w.r.t. hidden state as required in Problem 5.2
         # and to sample from the the model as required in Problem 5.3
-        # We are not asking you to run on the test data, but if you 
+        # We are not asking you to run on the test data, but if you
         # want to look at test performance you would load the saved
         # model and run on the test data with batch_size=1
 
@@ -485,6 +496,11 @@ for epoch in range(num_epochs):
               + 'val ppl: ' + str(val_ppl) + '\t' \
               + 'best val: ' + str(best_val_so_far) + '\t' \
               + 'time (s) spent in epoch: ' + str(times[-1])
+    # todo added new line to the output string
+    if len(seq_loss) > 0:
+        log_str += 'Additional data (modified)'
+        log_str += '\nval_loss={}, \nseq_losses (len={}, sum={}): {}'.format(val_loss, len(seq_loss), sum(seq_loss), seq_loss)
+
     print(log_str)
     with open(os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
         f_.write(log_str + '\n')
@@ -497,6 +513,6 @@ np.save(lc_path, {'train_ppls': train_ppls,
                   'train_losses': train_losses,
                   'val_losses': val_losses})
 # NOTE ==============================================
-# To load these, run 
+# To load these, run
 # >>> x = np.load(lc_path)[()]
 # You will need these values for plotting learning curves (Problem 4)
