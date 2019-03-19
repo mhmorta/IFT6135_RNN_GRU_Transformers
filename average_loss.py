@@ -121,6 +121,9 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
     f_exp_config = os.path.join(dir_name, 'exp_config.txt')
     if dir_name == results_dir:
         continue
+
+    if dir_name not in [os.path.join(results_dir, 'RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_save_dir=output_timestep_loss=true_0')]:
+        continue
     args = {}
     with open(f_exp_config, 'r') as f:
         for line in f:
@@ -199,6 +202,9 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
         print("Model type not recognized.")
 
     model = model.to(device)
+
+    print("###Loading the model from best_params.pt###")
+    model.load_state_dict(torch.load('{}/best_params.pt'.format(args['experiment_path']), map_location=device))
 
     # LOSS FUNCTION
     loss_fn = nn.CrossEntropyLoss()
