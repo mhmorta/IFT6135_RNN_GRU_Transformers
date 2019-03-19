@@ -3,6 +3,7 @@ import numpy as np
 import os
 from torch.autograd import Variable
 
+
 def _read_words(filename):
     with open(filename, "r") as f:
         return f.read().replace("\n", "<eos>").split()

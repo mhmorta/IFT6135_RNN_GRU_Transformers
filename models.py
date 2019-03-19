@@ -308,7 +308,8 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # outputs of the last layer
         distribution = torch.softmax(self.output(layer_output) / temperature, dim=1)
 
-        output = torch.multinomial(distribution, 1).squeeze() # shape (batch_size, vocab_size)
+        # sample from distribution
+        output = torch.multinomial(distribution, 1).squeeze() # shape (batch_size)
 
         # update hidden state after processing all layers for a single batch (num_layers, hidden_size)
         hidden = torch.stack(hidden_list)
