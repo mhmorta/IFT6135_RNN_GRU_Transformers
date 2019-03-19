@@ -2,6 +2,16 @@ import collections
 import numpy as np
 import os
 from torch.autograd import Variable
+import argparse
+import time
+import collections
+import os
+import sys
+import torch
+import torch.nn
+from torch.autograd import Variable
+import torch.nn as nn
+import numpy
 
 
 def _read_words(filename):
@@ -77,3 +87,38 @@ def repackage_hidden(h):
         return h.detach_()
     else:
         return tuple(repackage_hidden(v) for v in h)
+
+
+def get_device():
+    # Use the GPU if you have one
+    if torch.cuda.is_available():
+        print("Using the GPU")
+        device = torch.device("cuda")
+    else:
+        print("WARNING: You are about to run on cpu, and this will likely run out \
+          of memory. \n You can try setting batch_size=1 to reduce memory usage")
+        device = torch.device("cpu")
+    return device
+
+
+class Batch:
+    "Data processing for the transformer. This class adds a mask to the data."
+
+    def __init__(self, x, pad=-1):
+        self.data = x
+        self.mask = self.make_mask(self.data, pad)
+
+    @staticmethod
+    def make_mask(data, pad):
+        "Create a mask to hide future words."
+
+        def subsequent_mask(size):
+            """ helper function for creating the masks. """
+            attn_shape = (1, size, size)
+            subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+            return torch.from_numpy(subsequent_mask) == 0
+
+        mask = (data != pad).unsqueeze(-2)
+        mask = mask & Variable(
+            subsequent_mask(data.size(-1)).type_as(mask.data))
+        return mask
