@@ -5,6 +5,8 @@ import numpy as np
 import torch.nn.functional as F
 import math, copy
 from torch.autograd import Variable
+from collections import defaultdict
+
 
 # NOTE ==============================================
 #
@@ -46,13 +48,32 @@ class RNNUnit(nn.Module):
     """
     Class RNNUnit represents a single RNN recurrent layer cell
     """
+    grads = defaultdict(list)
+    @staticmethod
+    def grad_hook(layer_num, timestep):
+        def hook(grad):
+            print('layer_num:', layer_num, 'timestep:', timestep, 'grad:', grad)
+            RNNUnit.grads[layer_num].append(grad)
+        return hook
 
-    def __init__(self, hidden_size, input_size):
+    @staticmethod
+    def grad_backward_hook(layer_num, timestep):
+        def hook(module, grad_input, grad_output):
+            #print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input, 'grad_output:', grad_output)
+            print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input[0])
+            tsr = grad_output[1]
+            print('layer_num:', layer_num, 'timestep:', timestep, 'norm:', tsr.norm())
+            GRUUnit.grads[layer_num].append(tsr)
+            #GRUUnit.grads[layer_num].append(grad)
+        return hook
+
+    def __init__(self, hidden_size, input_size, layer_num):
         super(RNNUnit, self).__init__()
         self.hidden_size = hidden_size
         self.i2h = nn.Linear(input_size, hidden_size, bias=False)
         self.h2h = nn.Linear(hidden_size, hidden_size)
         self.non_linearity = nn.Tanh()
+        self.layer_num = layer_num
 
     def forward(self, inputs, hidden):
         """
@@ -63,10 +84,10 @@ class RNNUnit(nn.Module):
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
         # no gradient is computed if we don't call requires_grad_(True)
-        #hidden = hidden.clone().detach().requires_grad_(True)
-        hidden.retain_grad()
+        hidden = Variable(hidden, retain_grad=True)
         return hidden
 
+    # hidden = hidden.clone().detach().requires_grad_(True)
     def init_weights_uniform(self):
         # TODO ========================
         # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
@@ -83,6 +104,7 @@ class RNNUnit(nn.Module):
 
 # Problem 1
 class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearities.
+
     def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
         """
         emb_size:     The number of units in the input embeddings
@@ -111,10 +133,23 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         self.embeddings = nn.Embedding(vocab_size, emb_size)
 
-        # create stack of hidden layers as modules list
-        hidden_modules = [RNNUnit(hidden_size, emb_size)]
+        gru_unit = GRUUnit(hidden_size, emb_size)
+        hidden_modules = [gru_unit]
+        #gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 1))
+
         for _ in range(max(0, num_layers - 1)):
-            hidden_modules.append(RNNUnit(hidden_size, hidden_size))
+            gru_unit = GRUUnit(hidden_size, hidden_size)
+            #gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 1))
+            hidden_modules.append(gru_unit)
+
+        # create stack of hidden layers as modules list
+        rnn_unit = RNNUnit(hidden_size, emb_size, 0)
+        #rnn_unit.register_backward_hook(RNNUnit.grad_backward_hook(1, 1))
+        hidden_modules = []
+        for i in range(max(0, num_layers - 1)):
+            rnn_unit = RNNUnit(hidden_size, hidden_size, i + 1)
+            #rnn_unit.register_backward_hook(rnn_unit)
+            hidden_modules.append(rnn_unit)
         self.hidden_stack = nn.ModuleList(hidden_modules)
 
         self.output = nn.Linear(hidden_size, self.vocab_size)
@@ -205,7 +240,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         # will collect the output
         logits = []
 
-        for token_batch in embedded:  # shape (batch_size, emb_size)
+        for timestep_idx, token_batch in enumerate(embedded):  # shape (batch_size, emb_size)
 
             # first hidden layer is connected to the embeddings layer
             layer_output = self.dropout(token_batch)
@@ -219,6 +254,8 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
                 layer_hidden_prev = hidden[idx]
                 # apply the hidden layer
                 layer_hidden = layer(layer_output, layer_hidden_prev)
+                #layer_hidden.register_hook(RNNUnit.grad_hook(idx, timestep_idx))
+
                 # apply dropout to the vertical outputs
                 layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
                 # save output
@@ -268,6 +305,26 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 # Problem 2
 
 class GRUUnit(nn.Module):
+    grads = defaultdict(list)
+
+    @staticmethod
+    def grad_hook(layer_num, timestep):
+        def hook(grad):
+            print('layer_num:', layer_num, 'timestep:', timestep, 'grad:', grad)
+            GRUUnit.grads[layer_num].append(grad)
+        return hook
+
+    @staticmethod
+    def grad_backward_hook(layer_num, timestep):
+        def hook(module, grad_input, grad_output):
+            #print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input, 'grad_output:', grad_output)
+            print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input[0])
+            tsr = grad_output[1]
+            print('layer_num:', layer_num, 'timestep:', timestep, 'norm:', tsr.norm())
+            GRUUnit.grads[layer_num].append(tsr)
+            #GRUUnit.grads[layer_num].append(grad)
+        return hook
+
     def __init__(self, hidden_size, input_size):
         super(GRUUnit, self).__init__()
         self.hidden_size = hidden_size
@@ -293,8 +350,8 @@ class GRUUnit(nn.Module):
         r = self.sigmoid(self.i2r(inputs) + self.h2r(hidden))
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
-        hidden = (1 - z) * h1 + z * hidden
-        hidden.retain_grad()
+        hidden = Variable((1 - z) * h1 + z * hidden, requires_grad=True)
+        hidden.register_hook(GRUUnit.grad_hook(1, 1))
         return hidden
 
     def init_weights_uniform(self):
@@ -335,6 +392,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.vocab_size = vocab_size
         self.num_layers = num_layers
         self.hiddens = []
+        self.hiddens2 = []
 
         # actual dropout rate
         dropout_rate = 1 - dp_keep_prob
@@ -343,9 +401,15 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.embeddings = nn.Embedding(vocab_size, emb_size)
 
         # create stack of hidden layers as modules list
-        hidden_modules = [GRUUnit(hidden_size, emb_size)]
+        gru_unit = GRUUnit(hidden_size, emb_size)
+        #gru_unit.retain_grad()
+        hidden_modules = [gru_unit]
+        gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 1))
+
         for _ in range(max(0, num_layers - 1)):
-            hidden_modules.append(GRUUnit(hidden_size, hidden_size))
+            gru_unit = GRUUnit(hidden_size, hidden_size)
+            gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 2))
+            hidden_modules.append(gru_unit)
         self.hidden_stack = nn.ModuleList(hidden_modules)
 
         self.output = nn.Linear(hidden_size, self.vocab_size)
@@ -377,7 +441,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         # will collect the output
         logits = []
 
-        for token_batch in embedded:  # shape (batch_size, emb_size)
+        for timestep_idx, token_batch in enumerate(embedded):  # shape (batch_size, emb_size)
 
             # first hidden layer is connected to the embeddings layer
             layer_output = self.dropout(token_batch)
@@ -385,13 +449,15 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             # collect the output of hidden layers
             hidden_list = []
 
-            # all other hidden layers: 2, 3 ...
+            # all hidden layers: 1, 2, 3 ...
             for idx, layer in enumerate(self.hidden_stack):
                 # s_{t-1}
                 layer_hidden_prev = hidden[idx]
 
                 # apply the hidden layer
                 layer_hidden = layer(layer_output, layer_hidden_prev)
+                self.hiddens2.append(layer_hidden)
+
                 # apply dropout to the vertical outputs
                 layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
 
