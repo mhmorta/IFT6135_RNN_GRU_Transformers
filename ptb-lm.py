@@ -421,14 +421,17 @@ def run_epoch(model, data, is_train=False, lr=1.0):
             loss2 = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
             loss2.backward(retain_graph=True)
             # just using Variable(required_grad=True)
-            print(model.hiddens2)
+            print('model.hiddens2: ')
+            for hidden in model.hiddens2:
+                print(hidden.grad.norm() if hidden.grad is not None else "No grad")
             # using hooks
-            print(model.hidden_stack[0].grads[1])
+            print('model.hidden_stack:', model.hidden_stack[0].grads[1])
             # using autograd.backward
             #ret = torch.autograd.backward(loss2, model.hiddens[0], retain_graph=True)
             #print('ret:', ret)
+            model.zero_grad()
             grad = torch.autograd.grad(loss2, model.hiddens2[0], only_inputs=True, create_graph=True)
-            #norms[timestep_idx][layer_idx] = grad.data.norm()
+            print(grad)
 
             gn_path = os.path.join(args.save_dir, 'gradient_norms.npy')
             exit()

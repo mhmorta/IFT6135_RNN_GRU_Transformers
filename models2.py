@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 
-import numpy as np
-import torch.nn.functional as F
 import math, copy
 from torch.autograd import Variable
 from collections import defaultdict
@@ -12,9 +10,10 @@ class GRUUnit(nn.Module):
     grads = defaultdict(list)
 
     @staticmethod
-    def grad_hook(layer_num, timestep):
+    def grad_hook(layer_num):
         def hook(grad):
-            print('layer_num:', layer_num, 'timestep:', timestep, 'grad:', grad)
+            #print('layer_num:', layer_num, 'timestep:', timestep, 'grad:', grad)
+            print('norm:', grad.norm())
             GRUUnit.grads[layer_num].append(grad)
 
         return hook
@@ -23,18 +22,19 @@ class GRUUnit(nn.Module):
     def grad_backward_hook(layer_num, timestep):
         def hook(module, grad_input, grad_output):
             # print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input, 'grad_output:', grad_output)
-            print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input[0])
+            #print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input[0])
             tsr = grad_output[1]
-            print('layer_num:', layer_num, 'timestep:', timestep, 'norm:', tsr.norm())
+            #print('layer_num:', layer_num, 'timestep:', timestep, 'norm:', tsr.norm())
             GRUUnit.grads[layer_num].append(tsr)
             # GRUUnit.grads[layer_num].append(grad)
 
         return hook
 
-    def __init__(self, hidden_size, input_size):
+    def __init__(self, hidden_size, input_size, layer_num):
         super(GRUUnit, self).__init__()
         self.hidden_size = hidden_size
 
+        self.layer_num = layer_num
         self.i2r = nn.Linear(input_size, hidden_size)
         self.i2z = nn.Linear(input_size, hidden_size)
 
@@ -60,7 +60,7 @@ class GRUUnit(nn.Module):
         hidden = Variable(hidden, requires_grad=True)
         #hidden = hidden.clone().detach().requires_grad_(True)
 
-        hidden.register_hook(GRUUnit.grad_hook(1, 1))
+        hidden.register_hook(GRUUnit.grad_hook(self.layer_num))
         return hidden
 
     def init_weights_uniform(self):
@@ -110,12 +110,12 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.embeddings = nn.Embedding(vocab_size, emb_size)
 
         # create stack of hidden layers as modules list
-        gru_unit = GRUUnit(hidden_size, emb_size)
+        gru_unit = GRUUnit(hidden_size, emb_size, 0)
         gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 1))
         hidden_modules = [gru_unit]
 
-        for _ in range(max(0, num_layers - 1)):
-            gru_unit = GRUUnit(hidden_size, hidden_size)
+        for i in range(max(0, num_layers - 1)):
+            gru_unit = GRUUnit(hidden_size, hidden_size, i+1)
             gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 2))
             hidden_modules.append(gru_unit)
         self.hidden_stack = nn.ModuleList(hidden_modules)
