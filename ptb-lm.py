@@ -408,10 +408,8 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         else:
             inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
             model.zero_grad()
-            hidden_orig = repackage_hidden(hidden)
-            # hidden_orig.retain_grad()
-            hidden_orig = Variable(hidden_orig, requires_grad=True)
-            outputs, _ = model(inputs, hidden_orig)
+            hidden = repackage_hidden(hidden)
+            outputs, hidden = model(inputs, hidden)
 
         targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
         tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
@@ -419,21 +417,12 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         # todo computing gradient norms
         if args.compute_gradient:
             loss2 = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
-            loss2.backward(retain_graph=True)
-            # just using Variable(required_grad=True)
-            print('model.hiddens2: ')
-            for hidden in model.hiddens2:
-                print(hidden.grad.norm() if hidden.grad is not None else "No grad")
-            # using hooks
-            print('model.hidden_stack:', model.hidden_stack[0].grads[1])
-            # using autograd.backward
-            #ret = torch.autograd.backward(loss2, model.hiddens[0], retain_graph=True)
-            #print('ret:', ret)
-            model.zero_grad()
-            grad = torch.autograd.grad(loss2, model.hiddens2[0], only_inputs=True, create_graph=True)
-            print(grad)
+            hiddens = model.hidden_stack[0].hiddens
+            ret = torch.autograd.grad(loss2, hiddens)
+            print('ret:', [g.norm() for g in ret])
 
-            gn_path = os.path.join(args.save_dir, 'gradient_norms.npy')
+
+            #gn_path = os.path.join(args.save_dir, 'gradient_norms.npy')
             exit()
 
 

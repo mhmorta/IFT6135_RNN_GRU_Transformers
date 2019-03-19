@@ -7,34 +7,11 @@ from collections import defaultdict
 
 
 class GRUUnit(nn.Module):
-    grads = defaultdict(list)
 
-    @staticmethod
-    def grad_hook(layer_num):
-        def hook(grad):
-            #print('layer_num:', layer_num, 'timestep:', timestep, 'grad:', grad)
-            print('norm:', grad.norm())
-            GRUUnit.grads[layer_num].append(grad)
-
-        return hook
-
-    @staticmethod
-    def grad_backward_hook(layer_num, timestep):
-        def hook(module, grad_input, grad_output):
-            # print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input, 'grad_output:', grad_output)
-            #print('layer_num:', layer_num, 'timestep:', timestep, 'module:', module, 'grad_input:', grad_input[0])
-            tsr = grad_output[1]
-            #print('layer_num:', layer_num, 'timestep:', timestep, 'norm:', tsr.norm())
-            GRUUnit.grads[layer_num].append(tsr)
-            # GRUUnit.grads[layer_num].append(grad)
-
-        return hook
-
-    def __init__(self, hidden_size, input_size, layer_num):
+    def __init__(self, hidden_size, input_size):
         super(GRUUnit, self).__init__()
         self.hidden_size = hidden_size
 
-        self.layer_num = layer_num
         self.i2r = nn.Linear(input_size, hidden_size)
         self.i2z = nn.Linear(input_size, hidden_size)
 
@@ -47,6 +24,8 @@ class GRUUnit(nn.Module):
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
 
+        self.hiddens = []
+
     def forward(self, inputs, hidden):
         """
         :param inputs: shape: (batch_size, input_size)
@@ -57,10 +36,7 @@ class GRUUnit(nn.Module):
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
         hidden = (1 - z) * h1 + z * hidden
-        hidden = Variable(hidden, requires_grad=True)
-        #hidden = hidden.clone().detach().requires_grad_(True)
-
-        hidden.register_hook(GRUUnit.grad_hook(self.layer_num))
+        self.hiddens.append(hidden)
         return hidden
 
     def init_weights_uniform(self):
@@ -100,8 +76,8 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.num_layers = num_layers
+
         self.hiddens = []
-        self.hiddens2 = []
 
         # actual dropout rate
         dropout_rate = 1 - dp_keep_prob
@@ -110,13 +86,11 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         self.embeddings = nn.Embedding(vocab_size, emb_size)
 
         # create stack of hidden layers as modules list
-        gru_unit = GRUUnit(hidden_size, emb_size, 0)
-        gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 1))
+        gru_unit = GRUUnit(hidden_size, emb_size)
         hidden_modules = [gru_unit]
 
         for i in range(max(0, num_layers - 1)):
-            gru_unit = GRUUnit(hidden_size, hidden_size, i+1)
-            gru_unit.register_backward_hook(GRUUnit.grad_backward_hook(1, 2))
+            gru_unit = GRUUnit(hidden_size, hidden_size)
             hidden_modules.append(gru_unit)
         self.hidden_stack = nn.ModuleList(hidden_modules)
 
@@ -164,7 +138,6 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 
                 # apply the hidden layer
                 layer_hidden = layer(layer_output, layer_hidden_prev)
-                self.hiddens2.append(layer_hidden)
 
                 # apply dropout to the vertical outputs
                 layer_output = self.dropout(layer_hidden)  # shape (batch_size, hidden_size)
@@ -172,16 +145,17 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
                 # save output
                 hidden_list.append(layer_hidden)
 
+                self.hiddens.append(layer_hidden)
             # update hidden state after processing all layers for a single batch
             # (num_layers, seq_len, hidden_size)
-            self.hiddens.append(torch.stack(hidden_list))
 
+            hidden = torch.stack(hidden_list)
             # collect outputs of the last layer
             logits.append(self.output(layer_output))
 
         # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
         logits = torch.stack(logits)
-        return logits.view(self.seq_len, self.batch_size, self.vocab_size), self.hiddens[-1]
+        return logits, hidden
 
     def generate(self, input, hidden, generated_seq_len):
         # TODO ========================
