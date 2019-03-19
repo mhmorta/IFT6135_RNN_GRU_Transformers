@@ -84,7 +84,6 @@ import torch.nn
 import torch.nn as nn
 import numpy
 import utils
-from distutils.util import strtobool
 
 np = numpy
 
@@ -98,51 +97,15 @@ from models import make_model as TRANSFORMER
 # ARG PARSING AND EXPERIMENT SETUP
 #
 ##############################################################################
-types = {
-    'data': str,
-    'model': str,
-    'optimizer': str,
-    'seq_len': int,
-    'batch_size': int,
-    'initial_lr': float,
-    'hidden_size': int,
-    'save_best': strtobool,
-    'num_layers': int,
-    'emb_size': int,
-    'num_epochs': int,
-    'dp_keep_prob': float,
-    'debug': strtobool,
-    'save_dir': str,
-    'evaluate': strtobool,
-    'seed': int,
-}
+
 results_dir = "results/4_1"
 for dir_name in [x[0] for x in os.walk(results_dir)]:
-    f_exp_config = os.path.join(dir_name, 'exp_config.txt')
     if dir_name == results_dir:
         continue
 
-    if dir_name not in [os.path.join(results_dir, 'RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_save_dir=output_timestep_loss=true_0')]:
-        continue
-    args = {}
-    with open(f_exp_config, 'r') as f:
-        for line in f:
-            items = line.split()
-            key = items[0]
-            converter = types[key] if key in types else str
-            key, values = items[0], converter(items[1:][0])
-            args[key] = values
-            args['experiment_path'] = dir_name
-        print('args:', args)
-
-
-    class dotdict(dict):
-        """dot.notation access to dictionary attributes"""
-        __getattr__ = dict.get
-        __setattr__ = dict.__setitem__
-        __delattr__ = dict.__delitem__
-
-    args = dotdict(args)
+    #if dir_name not in [os.path.join(results_dir, 'RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_save_dir=output_timestep_loss=true_0')]:
+    #    continue
+    args = utils.load_model_config(dir_name)
 
     # Set the random seed manually for reproducibility.
     torch.manual_seed(args.seed)
@@ -267,5 +230,9 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
     if len(seq_loss) > 0:
         log_str += '\nAdditional data (modified)'
         log_str += '\nval_loss={}, \nseq_losses (len={}, sum={}): {}'.format(val_loss, len(seq_loss), sum(seq_loss), seq_loss)
-
     print(log_str)
+
+    sl_path = os.path.join(args['experiment_path'], 'seq_loss.npy')
+    print('\nDONE\n\nSaving seq_loss to ' + sl_path)
+    np.save(sl_path, seq_loss)
+

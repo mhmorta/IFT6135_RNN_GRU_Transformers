@@ -1,17 +1,10 @@
-import collections
 import numpy as np
-import os
-from torch.autograd import Variable
-import argparse
-import time
 import collections
 import os
-import sys
 import torch
 import torch.nn
 from torch.autograd import Variable
-import torch.nn as nn
-import numpy
+from distutils.util import strtobool
 
 
 def _read_words(filename):
@@ -122,3 +115,45 @@ class Batch:
         mask = mask & Variable(
             subsequent_mask(data.size(-1)).type_as(mask.data))
         return mask
+
+
+def load_model_config(dir_name):
+    types = {
+        'data': str,
+        'model': str,
+        'optimizer': str,
+        'seq_len': int,
+        'batch_size': int,
+        'initial_lr': float,
+        'hidden_size': int,
+        'save_best': strtobool,
+        'num_layers': int,
+        'emb_size': int,
+        'num_epochs': int,
+        'dp_keep_prob': float,
+        'debug': strtobool,
+        'save_dir': str,
+        'evaluate': strtobool,
+        'seed': int,
+    }
+    f_exp_config = os.path.join(dir_name, 'exp_config.txt')
+    args = {}
+    with open(f_exp_config, 'r') as f:
+        for line in f:
+            items = line.split()
+            key = items[0]
+            converter = types[key] if key in types else str
+            key, values = items[0], converter(items[1:][0])
+            args[key] = values
+        args['experiment_path'] = dir_name
+        args['name'] = args['save_dir'].split('/')[1]
+
+    class dotdict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+
+    args = dotdict(args)
+
+    return args
