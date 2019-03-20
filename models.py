@@ -457,7 +457,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 
         # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
         logits = torch.stack(logits)
-        return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+        return logits, hidden
 
     def generate(self, inputs, hidden, generated_seq_len, temperature=1):
         # Compute the forward pass, as in the self.forward method (above).
