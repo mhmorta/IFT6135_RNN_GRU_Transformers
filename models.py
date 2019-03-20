@@ -3,9 +3,8 @@ import torch.nn as nn
 
 import numpy as np
 import torch.nn.functional as F
-import math, copy, time
+import math, copy
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
 
 # NOTE ==============================================
 #
@@ -54,6 +53,7 @@ class RNNUnit(nn.Module):
         self.i2h = nn.Linear(input_size, hidden_size, bias=False)
         self.h2h = nn.Linear(hidden_size, hidden_size)
         self.non_linearity = nn.Tanh()
+        self.hiddens = []
 
     def forward(self, inputs, hidden):
         """
@@ -63,6 +63,7 @@ class RNNUnit(nn.Module):
         """
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
+        self.hiddens.append(hidden)
 
         return hidden
 
@@ -151,7 +152,6 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
 
         for rnn_unit in self.hidden_stack:
             rnn_unit.init_weights_uniform()
-
 
     def init_hidden(self):
         # TODO ========================
@@ -315,8 +315,8 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         hidden = torch.stack(hidden_list)
         return output, hidden
 
-# Problem 2
 
+# Problem 2
 class GRUUnit(nn.Module):
     def __init__(self, hidden_size, input_size):
         super(GRUUnit, self).__init__()
@@ -333,6 +333,7 @@ class GRUUnit(nn.Module):
 
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
+        self.hiddens = []
 
     def forward(self, inputs, hidden):
         """
@@ -344,6 +345,7 @@ class GRUUnit(nn.Module):
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
         hidden = (1 - z) * h1 + z * hidden
+        self.hiddens.append(hidden)
 
         return hidden
 

@@ -13,15 +13,16 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
     args = utils.load_model_config(dir_name)
     x = np.load(os.path.join(dir_name, 'seq_loss.npy'))
     plt.figure(figsize=(20, 12))
-    #timesteps = args['seq_len'] * 3
-    #avgs = defaultdict(list)
-    #for idx, val in enumerate(x):
-    #    avgs[idx % args['seq_len']].append(val)
-    #l = []
-    #for idx in range(args['seq_len']):
-    #    l.append(np.mean(avgs[idx]))
-    #print('l:', l)
-    l = x
+    timesteps = args['seq_len'] * 3
+    avgs = defaultdict(list)
+    for idx, val in enumerate(x):
+        avgs[idx % args['seq_len']].append(val)
+    l = []
+    for idx in range(args['seq_len']):
+        l.append(np.mean(avgs[idx]))
+    print('l:', l)
+    print('sum:', sum(l))
+    #l = x
     plt.plot(l, marker='o')
     plt.title('{}\n\n({})'.format('Average loss per time-step', "\n".join(wrap(args['name']))))
     plt.xlabel("Time-step")

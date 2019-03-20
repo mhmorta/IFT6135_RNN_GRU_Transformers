@@ -200,10 +200,12 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
             # and all time-steps of the sequences.
             # For problem 5.3, you will (instead) need to compute the average loss
             # at each time-step separately.
-            model.seq_len = 1
-            for input, target in zip(inputs, targets):
-                outputs, hidden = model(input.expand(1, input.size(0)), hidden)
-                l = loss_fn(outputs.squeeze(), target)
+            for seq_id in range(model.seq_len):
+                seq_len = seq_id + 1
+                model.seq_len = seq_len
+                outputs, hidden = model(inputs[:seq_len, :], hidden)
+                tt = torch.squeeze(targets[:seq_len].view(-1, model.batch_size * seq_len))
+                l = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
                 seq_losses.append(l.data.item())
         return seq_losses
 
