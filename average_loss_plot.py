@@ -22,7 +22,7 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
         l.append(np.mean(avgs[idx]))
     print('l:', l)
     print('sum:', sum(l))
-    #l = x
+    l = x
     plt.plot(l, marker='o')
     plt.title('{}\n\n({})'.format('Average loss per time-step', "\n".join(wrap(args['name']))))
     plt.xlabel("Time-step")

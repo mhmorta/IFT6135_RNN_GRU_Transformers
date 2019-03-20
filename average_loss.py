@@ -184,7 +184,7 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
 
         # LOOP THROUGH MINIBATCHES
         for step, (x, y) in enumerate(utils.ptb_iterator(data, model.batch_size, model.seq_len)):
-            if step > 1: continue
+            if step > 3: continue
             if args.model == 'TRANSFORMER':
                 batch = utils.Batch(torch.from_numpy(x).long().to(device))
                 model.zero_grad()
