@@ -434,7 +434,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             # collect the output of hidden layers
             hidden_list = []
 
-            # all other hidden layers: 2, 3 ...
+            # all other hidden layers: 1, 2, 3 ...
             for idx, layer in enumerate(self.hidden_stack):
                 # s_{t-1}
                 layer_hidden_prev = hidden[idx]

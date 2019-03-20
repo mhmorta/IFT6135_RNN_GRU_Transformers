@@ -180,56 +180,45 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
         if args.model != 'TRANSFORMER':
             hidden = model.init_hidden()
             hidden = hidden.to(device)
-        costs = 0.0
-        iters = 0
-        losses = []
         seq_losses = []
 
         # LOOP THROUGH MINIBATCHES
         for step, (x, y) in enumerate(utils.ptb_iterator(data, model.batch_size, model.seq_len)):
+            if step > 0: continue
             if args.model == 'TRANSFORMER':
                 batch = utils.Batch(torch.from_numpy(x).long().to(device))
                 model.zero_grad()
-                outputs = model.forward(batch.data, batch.mask).transpose(1, 0)
                 # print ("outputs.shape", outputs.shape)
             else:
                 inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
                 model.zero_grad()
                 hidden = utils.repackage_hidden(hidden)
-                outputs, hidden = model(inputs, hidden)
 
             targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
-            tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
-
             # LOSS COMPUTATION
             # This line currently averages across all the sequences in a mini-batch
             # and all time-steps of the sequences.
             # For problem 5.3, you will (instead) need to compute the average loss
             # at each time-step separately.
-            loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
-            costs += loss.data.item() * model.seq_len
-            losses.append(costs)
-            iters += model.seq_len
-            if args.debug:
-                print(step, loss)
-            for output, target in zip(outputs, targets):
-                l = loss_fn(output, target)
+            model.seq_len = 1
+            for input, target in zip(inputs, targets):
+                outputs, hidden = model(input.expand(1, input.size(0)), hidden)
+                l = loss_fn(outputs.squeeze(), target)
                 seq_losses.append(l.data.item())
-
-        return np.exp(costs / iters), losses, seq_losses
+        return seq_losses
 
 
     print("\n########## Running Main Loop ##########################")
 
     # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss, seq_loss = run_epoch(model, valid_data)
+    seq_loss = run_epoch(model, valid_data)
 
     print('args:', args)
     # LOC RESULTS
-    log_str = 'val ppl: ' + str(val_ppl)
+    log_str = ''
     if len(seq_loss) > 0:
         log_str += '\nAdditional data (modified)'
-        log_str += '\nval_loss={}, \nseq_losses (len={}, sum={}): {}'.format(val_loss, len(seq_loss), sum(seq_loss), seq_loss)
+        log_str += '\nseq_losses (len={}, sum={}): {}'.format(len(seq_loss), sum(seq_loss), seq_loss)
     print(log_str)
 
     sl_path = os.path.join(args['experiment_path'], 'seq_loss.npy')
