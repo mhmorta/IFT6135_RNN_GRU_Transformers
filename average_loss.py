@@ -103,10 +103,7 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
     if dir_name == results_dir:
         continue
 
-    #if dir_name not in [os.path.join(results_dir, 'RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.0001_batch_size=20_seq_len=35_hidden_size=1500_num_layers=2_dp_keep_prob=0.35_save_best_save_dir=output_timestep_loss=true_0')]:
-    #    continue
     args = utils.load_model_config(dir_name)
-
     # Set the random seed manually for reproducibility.
     torch.manual_seed(args.seed)
 
@@ -166,6 +163,7 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
 
     model = model.to(device)
 
+    print('###Using args: {}###'.format(args))
     print("###Loading the model from best_params.pt###")
     model.load_state_dict(torch.load('{}/best_params.pt'.format(args['experiment_path']), map_location=device))
 
@@ -177,22 +175,29 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
         One epoch of training/validation (depending on flag is_train).
         """
         model.eval()
-        if args.model != 'TRANSFORMER':
-            hidden = model.init_hidden()
-            hidden = hidden.to(device)
-        seq_losses = []
-
+        seq_losses = np.zeros(model.seq_len)
+        minitbatch_count = 0
         # LOOP THROUGH MINIBATCHES
         for step, (x, y) in enumerate(utils.ptb_iterator(data, model.batch_size, model.seq_len)):
-            if step > 3: continue
+            if step > 65:  # to prevent out-of memory
+                continue
+            if step % 10 == 0:
+                print('step', step)
+            step_seq_losses = []
+            if args.model != 'TRANSFORMER':
+                hidden = model.init_hidden()
+                hidden = hidden.to(device)
+
             if args.model == 'TRANSFORMER':
                 batch = utils.Batch(torch.from_numpy(x).long().to(device))
                 model.zero_grad()
+                outputs = model.forward(batch.data, batch.mask).transpose(1, 0)
                 # print ("outputs.shape", outputs.shape)
             else:
                 inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
                 model.zero_grad()
                 hidden = utils.repackage_hidden(hidden)
+                outputs, hidden = model(inputs, hidden)
 
             targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
             # LOSS COMPUTATION
@@ -200,18 +205,12 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
             # and all time-steps of the sequences.
             # For problem 5.3, you will (instead) need to compute the average loss
             # at each time-step separately.
-            #for seq_id in range(args['seq_len']):
-            #    outputs, hidden = model(inputs[seq_id, :].view(-1, model.batch_size), hidden)
-            #    tt = torch.squeeze(targets[seq_id].view(-1, model.batch_size))
-            #    l = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
-            #    seq_losses.append(l.data.item())
-            for seq_id in range(args['seq_len']):
-                seq_len = seq_id + 1
-                outputs, hidden = model(inputs[:seq_len, :], hidden)
-                tt = torch.squeeze(targets[:seq_len].view(-1, model.batch_size * seq_len))
-                l = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
-                seq_losses.append(l.data.item())
-        return seq_losses
+            for output, target in zip(outputs, targets):
+                l = loss_fn(output, target)
+                step_seq_losses.append(l.data.item())
+            minitbatch_count += 1
+            seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
+        return seq_losses / minitbatch_count
 
 
     print("\n########## Running Main Loop ##########################")
@@ -219,12 +218,8 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
     # RUN MODEL ON VALIDATION DATA
     seq_loss = run_epoch(model, valid_data)
 
-    print('args:', args)
     # LOC RESULTS
-    log_str = ''
-    if len(seq_loss) > 0:
-        log_str += '\nAdditional data (modified)'
-        log_str += '\nseq_losses (len={}, sum={}): {}'.format(len(seq_loss), sum(seq_loss), seq_loss)
+    log_str = '\nseq_losses (len={}, sum={}): {}'.format(len(seq_loss), sum(seq_loss), seq_loss)
     print(log_str)
 
     sl_path = os.path.join(args['experiment_path'], 'seq_loss.npy')
