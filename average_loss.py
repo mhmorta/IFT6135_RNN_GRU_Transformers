@@ -106,7 +106,6 @@ parser.add_argument('--saved_models_dir', type=str,
                     help='Directory with saved models \
                          (best_params.pt and exp_config.txt must be present there). \
                          All its\' individual subdirectories will be iterated')
-
 parser.add_argument('--task', type=str,
                     help='5.1 or 5.2')
 
@@ -192,7 +191,6 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
         """
         model.eval()
         seq_losses = np.zeros(model.seq_len)
-        minibatch_count = 0
         # LOOP THROUGH MINIBATCHES
         for step, (x, y) in enumerate(utils.ptb_iterator(data, model.batch_size, model.seq_len)):
             if step % 10 == 0:
@@ -211,6 +209,8 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
                 inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
                 model.zero_grad()
                 hidden = utils.repackage_hidden(hidden)
+                if task == '5.2':
+                    model.init_hidden_state_list()
                 outputs, hidden = model(inputs, hidden)
 
             targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
@@ -224,30 +224,34 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
                     for output, target in zip(outputs, targets):
                         l = loss_fn(output, target)
                         step_seq_losses.append(l.data.item())
-                    minibatch_count += 1
                     seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
             elif task == '5.2':
-                model.init_hidden_state_list()
-                tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
-                loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
-                hiddens = model.hidden_stack[0].hiddens
-                ret = torch.autograd.grad(loss, hiddens)
-                print('ret:', [g.norm() for g in ret])
-                exit()
+                loss = loss_fn(outputs[-1], targets[-1])
+                tensors = []
+                for unit in model.hidden_stack:
+                    ret = torch.autograd.grad(loss, unit.hiddens, retain_graph=True)
+                    tensors.append([g for g in ret])
+                stacked = []
+                for i in range(len(tensors[0])):
+                    stacked.append(torch.stack([tensors[j][i] for j in range(len(tensors))]))
+                ts_grads = [s.norm() for s in stacked]
+                print('norms: ', ts_grads)
+                ts_path = os.path.join(args['experiment_path'], 'timestep_grads.npy')
+                print('\nDONE\n\nSaving timestep_grads to ' + ts_path)
+                np.save(ts_path, ts_grads)
+                break
 
-        return seq_losses / minibatch_count
+        if task == '5.1':
+            seq_loss = seq_losses / (step + 1)
+            log_str = '\nseq_losses (len={}, sum={}): {}'.format(len(seq_loss), sum(seq_loss), seq_loss)
+            print(log_str)
 
+            sl_path = os.path.join(args['experiment_path'], 'seq_loss.npy')
+            print('\nDONE\n\nSaving seq_loss to ' + sl_path)
+            np.save(sl_path, seq_loss)
 
-    print("\n########## Running Main Loop ##########################")
 
     # RUN MODEL ON VALIDATION DATA
-    seq_loss = run_epoch(model, valid_data)
+    run_epoch(model, valid_data)
 
-    # LOC RESULTS
-    log_str = '\nseq_losses (len={}, sum={}): {}'.format(len(seq_loss), sum(seq_loss), seq_loss)
-    print(log_str)
-
-    sl_path = os.path.join(args['experiment_path'], 'seq_loss.npy')
-    print('\nDONE\n\nSaving seq_loss to ' + sl_path)
-    np.save(sl_path, seq_loss)
 

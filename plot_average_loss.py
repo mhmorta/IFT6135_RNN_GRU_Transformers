@@ -8,7 +8,6 @@ from collections import defaultdict
 
 parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Modeling')
 
-# Arguments you may need to set to run different experiments in 4.1 & 4.2.
 parser.add_argument('--saved_models_dir', type=str,
                     help='Directory with saved models \
                          (best_params.pt and exp_config.txt must be present there). \
@@ -22,15 +21,7 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
     x = np.load(os.path.join(dir_name, 'seq_loss.npy'))
     plt.figure(figsize=(12, 12))
     avgs = defaultdict(list)
-    #for idx, val in enumerate(x):
-    #    avgs[idx % args['seq_len']].append(val)
-    #l = []
-    #for idx in range(args['seq_len']):
-    #    l.append(np.mean(avgs[idx]))
-    #print('l:', l)
-    #print('sum:', sum(l))
-    l = x
-    plt.plot(l, marker='o')
+    plt.plot(x, marker='o')
     plt.title('{}\n\n({})'.format('Average loss per time-step', "\n".join(wrap(args['name']))))
     plt.xlabel("Time-step")
     plt.ylabel("Loss value")

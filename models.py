@@ -497,7 +497,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             output, hidden = self.generate_batch(inputs, hidden, temperature)
             samples.append(output)
             inputs = output
-        return torch.stack(samples) # shape (generated_seq_len, batch_size)
+        return torch.stack(samples)  # shape (generated_seq_len, batch_size)
 
     def init_hidden_state_list(self):
         for unit in self.hidden_stack:
