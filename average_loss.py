@@ -77,13 +77,14 @@
 #      GRU.  Implementing this method is not considered part of problems 1/2
 #      respectively, and will be graded as part of Problem 5.3
 
-
+import argparse
 import os
 import torch
 import torch.nn
 import torch.nn as nn
 import numpy
 import utils
+
 
 np = numpy
 
@@ -98,12 +99,23 @@ from models import make_model as TRANSFORMER
 #
 ##############################################################################
 
-results_dir = "results/4_1"
-for dir_name in [x[0] for x in os.walk(results_dir)]:
-    if dir_name == results_dir:
-        continue
+parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Modeling')
 
+# Arguments you may need to set to run different experiments in 4.1 & 4.2.
+parser.add_argument('--saved_models_dir', type=str,
+                    help='Directory with saved models \
+                         (best_params.pt and exp_config.txt must be present there). \
+                         All its\' individual subdirectories will be iterated')
+
+# Loading the params with which the model was trained
+
+saved_model_dir = parser.parse_args().saved_models_dir
+for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
+    if dir_name == saved_model_dir:
+        continue
     args = utils.load_model_config(dir_name)
+    print('###\nDirectory {}.\nUsing args : {}\n###'.format(dir_name, args))
+
     # Set the random seed manually for reproducibility.
     torch.manual_seed(args.seed)
 
@@ -163,7 +175,6 @@ for dir_name in [x[0] for x in os.walk(results_dir)]:
 
     model = model.to(device)
 
-    print('###Using args: {}###'.format(args))
     print("###Loading the model from best_params.pt###")
     model.load_state_dict(torch.load('{}/best_params.pt'.format(args['experiment_path']), map_location=device))
 
