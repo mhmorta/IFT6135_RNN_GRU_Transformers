@@ -14,9 +14,8 @@ parser.add_argument('--saved_models_dir', type=str,
 
 saved_model_dir = parser.parse_args().saved_models_dir
 plt.figure()#(figsize=(12, 12))
-for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
-    if dir_name == saved_model_dir:
-        continue
+dirs = [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir]
+for dir_name in dirs:
     args = utils.load_model_config(dir_name)
     x_raw = np.load(os.path.join(dir_name, 'timestep_grads.npy'))
     x = minmax_scale(x_raw)
@@ -26,5 +25,7 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
 plt.xlabel("Hidden state (concatenated)")
 plt.ylabel("Rescaled gradient norm")
 plt.legend()
-plt.savefig('{}/average_loss.png'.format(dir_name))
+for dir in dirs:
+    plt.savefig('{}/average_loss.png'.format(dir_name))
 plt.show()
+

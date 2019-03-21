@@ -14,9 +14,7 @@ parser.add_argument('--saved_models_dir', type=str,
                          All its\' individual subdirectories will be iterated')
 
 saved_model_dir = parser.parse_args().saved_models_dir
-for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
-    if dir_name == saved_model_dir:
-        continue
+for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir]:
     args = utils.load_model_config(dir_name)
     x = np.load(os.path.join(dir_name, 'seq_loss.npy'))
     plt.figure(figsize=(12, 12))
