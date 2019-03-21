@@ -79,14 +79,22 @@ def extract_epoch_time(log_path):
         epoch_times[i] = epoch_times[i-1]+ epoch_times[i]
     return epoch_times
 
+def files_exits(directory):
+    lc_path  = os.path.join(directory, 'learning_curves.npy')
+    log_path = os.path.join(directory, 'log.txt')
+    if os.path.exists(lc_path) and os.path.exists(log_path):
+        return True
+    return False 
+
 def main():
-    directories = glob.glob("results/*")
+    directories = glob.glob("output/*")
     for directory in directories:
-        lc_path, log_path, experiment = parse_args(directory)
-        x = np.load(lc_path)[()]
-        epoch_times = extract_epoch_time(log_path)
-        train_ppls, val_ppls, train_losses, val_losses = [x['train_ppls'], x['val_ppls'], x['train_losses'], x['val_losses'] ]
-        plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment, directory)
+        if(files_exits(directory)):
+            lc_path, log_path, experiment = parse_args(directory)
+            x = np.load(lc_path)[()]
+            epoch_times = extract_epoch_time(log_path)
+            train_ppls, val_ppls, train_losses, val_losses = [x['train_ppls'], x['val_ppls'], x['train_losses'], x['val_losses'] ]
+            plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment, directory)
 
 main()
 print('Done...')
