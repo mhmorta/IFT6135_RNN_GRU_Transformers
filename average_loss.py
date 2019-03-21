@@ -107,12 +107,18 @@ parser.add_argument('--saved_models_dir', type=str,
                          (best_params.pt and exp_config.txt must be present there). \
                          All its\' individual subdirectories will be iterated')
 
+parser.add_argument('--task', type=str,
+                    help='5.1 or 5.2')
+
 # Loading the params with which the model was trained
 saved_model_dir = parser.parse_args().saved_models_dir
+task = parser.parse_args().task
 for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
     if dir_name == saved_model_dir:
         continue
     args = utils.load_model_config(dir_name)
+    if task == '5.2' and args.model == 'TRANSFORMER':
+        continue
     print('###\nDirectory {}.\nUsing args : {}\n###'.format(dir_name, args))
 
     # Set the random seed manually for reproducibility.
@@ -186,7 +192,7 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
         """
         model.eval()
         seq_losses = np.zeros(model.seq_len)
-        minitbatch_count = 0
+        minibatch_count = 0
         # LOOP THROUGH MINIBATCHES
         for step, (x, y) in enumerate(utils.ptb_iterator(data, model.batch_size, model.seq_len)):
             if step % 10 == 0:
@@ -205,8 +211,6 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
                 inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
                 model.zero_grad()
                 hidden = utils.repackage_hidden(hidden)
-                if args.task == '5.2':
-                    model.init_hidden_state_list()
                 outputs, hidden = model(inputs, hidden)
 
             targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
@@ -215,14 +219,23 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
             # and all time-steps of the sequences.
             # For problem 5.3, you will (instead) need to compute the average loss
             # at each time-step separately.
-            with torch.no_grad():
-                for output, target in zip(outputs, targets):
-                    pass
-                    l = loss_fn(output, target)
-                    step_seq_losses.append(l.data.item())
-                minitbatch_count += 1
-                seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
-        return seq_losses / minitbatch_count
+            if task == '5.1':
+                with torch.no_grad():
+                    for output, target in zip(outputs, targets):
+                        l = loss_fn(output, target)
+                        step_seq_losses.append(l.data.item())
+                    minibatch_count += 1
+                    seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
+            elif task == '5.2':
+                model.init_hidden_state_list()
+                tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
+                loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size)[-1:], tt[-1:])
+                hiddens = model.hidden_stack[0].hiddens
+                ret = torch.autograd.grad(loss, hiddens)
+                print('ret:', [g.norm() for g in ret])
+                exit()
+
+        return seq_losses / minibatch_count
 
 
     print("\n########## Running Main Loop ##########################")
