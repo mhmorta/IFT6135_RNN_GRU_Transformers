@@ -1,3 +1,4 @@
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -5,10 +6,17 @@ import utils
 from textwrap import wrap
 from collections import defaultdict
 
+parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Modeling')
 
-results_dir = "results/4_1"
-for dir_name in [x[0] for x in os.walk(results_dir)]:
-    if dir_name == results_dir:
+# Arguments you may need to set to run different experiments in 4.1 & 4.2.
+parser.add_argument('--saved_models_dir', type=str,
+                    help='Directory with saved models \
+                         (best_params.pt and exp_config.txt must be present there). \
+                         All its\' individual subdirectories will be iterated')
+
+saved_model_dir = parser.parse_args().saved_models_dir
+for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
+    if dir_name == saved_model_dir:
         continue
     args = utils.load_model_config(dir_name)
     x = np.load(os.path.join(dir_name, 'seq_loss.npy'))
