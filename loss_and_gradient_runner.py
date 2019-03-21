@@ -112,9 +112,7 @@ parser.add_argument('--task', type=str,
 # Loading the params with which the model was trained
 saved_model_dir = parser.parse_args().saved_models_dir
 task = parser.parse_args().task
-for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
-    if dir_name == saved_model_dir:
-        continue
+for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir]:
     args = utils.load_model_config(dir_name)
     if task == '5.2' and args.model == 'TRANSFORMER':
         continue
@@ -227,13 +225,13 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
                     seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
             elif task == '5.2':
                 loss = loss_fn(outputs[-1], targets[-1])
-                tensors = []
+                layer_grads = []
                 for unit in model.hidden_stack:
                     ret = torch.autograd.grad(loss, unit.hiddens, retain_graph=True)
-                    tensors.append([g for g in ret])
+                    layer_grads.append(ret)
                 stacked = []
-                for i in range(len(tensors[0])):
-                    stacked.append(torch.stack([tensors[j][i] for j in range(len(tensors))]))
+                for i in range(len(layer_grads[0])):
+                    stacked.append(torch.stack([layer_grads[j][i] for j in range(len(layer_grads))]))
                 ts_grads = [s.norm() for s in stacked]
                 print('norms: ', ts_grads)
                 ts_path = os.path.join(args['experiment_path'], 'timestep_grads.npy')
