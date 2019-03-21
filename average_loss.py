@@ -205,6 +205,8 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
                 inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()
                 model.zero_grad()
                 hidden = utils.repackage_hidden(hidden)
+                if args.task == '5.2':
+                    model.init_hidden_state_list()
                 outputs, hidden = model(inputs, hidden)
 
             targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)  # .cuda()

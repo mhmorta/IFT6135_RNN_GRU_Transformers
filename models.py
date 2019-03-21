@@ -53,7 +53,7 @@ class RNNUnit(nn.Module):
         self.i2h = nn.Linear(input_size, hidden_size, bias=False)
         self.h2h = nn.Linear(hidden_size, hidden_size)
         self.non_linearity = nn.Tanh()
-        self.hiddens = []
+        self.hiddens = None
 
     def forward(self, inputs, hidden):
         """
@@ -63,7 +63,9 @@ class RNNUnit(nn.Module):
         """
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
-        self.hiddens.append(hidden)
+        # we only set hiddens to [] during the 5.2 experiments via model.init_hidden_state_list()
+        if self.hiddens is not None:
+            self.hiddens.append(hidden)
 
         return hidden
 
@@ -236,6 +238,10 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         logits = torch.stack(logits)
         return logits, hidden
 
+    def init_hidden_state_list(self):
+        for unit in self.hidden_stack:
+            unit.hiddens = []
+
     def generate(self, input, hidden, generated_seq_len, temperature=1):
         # TODO ========================
         # Compute the forward pass, as in the self.forward method (above).
@@ -333,7 +339,7 @@ class GRUUnit(nn.Module):
 
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
-        self.hiddens = []
+        self.hiddens = None
 
     def forward(self, inputs, hidden):
         """
@@ -345,7 +351,9 @@ class GRUUnit(nn.Module):
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
         hidden = (1 - z) * h1 + z * hidden
-        self.hiddens.append(hidden)
+        # we only set hiddens to [] during the 5.2 experiments via model.init_hidden_state_list()
+        if self.hiddens is not None:
+            self.hiddens.append(hidden)
 
         return hidden
 
@@ -490,6 +498,10 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             samples.append(output)
             inputs = output
         return torch.stack(samples) # shape (generated_seq_len, batch_size)
+
+    def init_hidden_state_list(self):
+        for unit in self.hidden_stack:
+            unit.hiddens = []
 
     def generate_batch(self, inputs, hidden, temperature):
         """
