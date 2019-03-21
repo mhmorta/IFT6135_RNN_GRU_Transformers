@@ -106,16 +106,8 @@ parser.add_argument('--saved_models_dir', type=str,
                     help='Directory with saved models \
                          (best_params.pt and exp_config.txt must be present there). \
                          All its\' individual subdirectories will be iterated')
-default_max_steps = 65
-parser.add_argument('--max_steps', type=int, default=default_max_steps,
-                    help='How many mini-batches to run (to prevent out-of-memory)')
 
 # Loading the params with which the model was trained
-
-max_steps = parser.parse_args().max_steps
-if max_steps == default_max_steps:
-    print('Using maximum of {} steps to prevent out-of-memory!!!'.format(max_steps))
-
 saved_model_dir = parser.parse_args().saved_models_dir
 for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
     if dir_name == saved_model_dir:
@@ -197,8 +189,6 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
         minitbatch_count = 0
         # LOOP THROUGH MINIBATCHES
         for step, (x, y) in enumerate(utils.ptb_iterator(data, model.batch_size, model.seq_len)):
-            if step > max_steps:
-                continue
             if step % 10 == 0:
                 print('step', step)
             step_seq_losses = []
@@ -223,11 +213,13 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir)]:
             # and all time-steps of the sequences.
             # For problem 5.3, you will (instead) need to compute the average loss
             # at each time-step separately.
-            for output, target in zip(outputs, targets):
-                l = loss_fn(output, target)
-                step_seq_losses.append(l.data.item())
-            minitbatch_count += 1
-            seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
+            with torch.no_grad():
+                for output, target in zip(outputs, targets):
+                    pass
+                    l = loss_fn(output, target)
+                    step_seq_losses.append(l.data.item())
+                minitbatch_count += 1
+                seq_losses = np.sum([seq_losses, np.array(step_seq_losses)], axis=0)
         return seq_losses / minitbatch_count
 
 
