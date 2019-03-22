@@ -23,5 +23,5 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_d
     plt.title('{}: Average loss per time-step'.format(args['model']))
     plt.xlabel("Time-step")
     plt.ylabel("Loss value")
-    plt.savefig('{}/average_loss.png'.format(dir_name))
+    plt.savefig('{}/{}_average_loss.png'.format(dir_name, args['model']))
     plt.show()
