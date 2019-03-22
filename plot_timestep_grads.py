@@ -26,6 +26,6 @@ plt.xlabel("Hidden state (concatenated)")
 plt.ylabel("Rescaled gradient norm")
 plt.legend()
 for dir in dirs:
-    plt.savefig('{}/timestamp_grads.png'.format(dir_name))
+    plt.savefig('{}/timestamp_grads.png'.format(dir))
 plt.show()
 
