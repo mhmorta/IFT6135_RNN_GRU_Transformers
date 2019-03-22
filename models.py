@@ -239,6 +239,7 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         return logits, hidden
 
     def init_hidden_state_list(self):
+        # we use it for 5.2
         for unit in self.hidden_stack:
             unit.hiddens = []
 
@@ -500,6 +501,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
         return torch.stack(samples)  # shape (generated_seq_len, batch_size)
 
     def init_hidden_state_list(self):
+        # we use it for 5.2
         for unit in self.hidden_stack:
             unit.hiddens = []
 

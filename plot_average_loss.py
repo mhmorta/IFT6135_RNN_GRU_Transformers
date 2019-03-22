@@ -17,10 +17,10 @@ saved_model_dir = parser.parse_args().saved_models_dir
 for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir]:
     args = utils.load_model_config(dir_name)
     x = np.load(os.path.join(dir_name, 'seq_loss.npy'))
-    plt.figure(figsize=(12, 12))
+    plt.figure#(figsize=(12, 12))
     avgs = defaultdict(list)
     plt.plot(x, marker='o')
-    plt.title('{}\n\n({})'.format('Average loss per time-step', "\n".join(wrap(args['name']))))
+    plt.title('{}: Average loss per time-step'.format(args['model']))
     plt.xlabel("Time-step")
     plt.ylabel("Loss value")
     plt.savefig('{}/average_loss.png'.format(dir_name))
