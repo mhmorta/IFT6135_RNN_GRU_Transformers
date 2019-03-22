@@ -1,7 +1,10 @@
-import collections
 import numpy as np
+import collections
 import os
+import torch
+import torch.nn
 from torch.autograd import Variable
+from distutils.util import strtobool
 
 
 def _read_words(filename):
@@ -77,3 +80,80 @@ def repackage_hidden(h):
         return h.detach_()
     else:
         return tuple(repackage_hidden(v) for v in h)
+
+
+def get_device():
+    # Use the GPU if you have one
+    if torch.cuda.is_available():
+        print("Using the GPU")
+        device = torch.device("cuda")
+    else:
+        print("WARNING: You are about to run on cpu, and this will likely run out \
+          of memory. \n You can try setting batch_size=1 to reduce memory usage")
+        device = torch.device("cpu")
+    return device
+
+
+class Batch:
+    "Data processing for the transformer. This class adds a mask to the data."
+
+    def __init__(self, x, pad=-1):
+        self.data = x
+        self.mask = self.make_mask(self.data, pad)
+
+    @staticmethod
+    def make_mask(data, pad):
+        "Create a mask to hide future words."
+
+        def subsequent_mask(size):
+            """ helper function for creating the masks. """
+            attn_shape = (1, size, size)
+            subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+            return torch.from_numpy(subsequent_mask) == 0
+
+        mask = (data != pad).unsqueeze(-2)
+        mask = mask & Variable(
+            subsequent_mask(data.size(-1)).type_as(mask.data))
+        return mask
+
+
+def load_model_config(dir_name):
+    types = {
+        'data': str,
+        'model': str,
+        'optimizer': str,
+        'seq_len': int,
+        'batch_size': int,
+        'initial_lr': float,
+        'hidden_size': int,
+        'save_best': strtobool,
+        'num_layers': int,
+        'emb_size': int,
+        'num_epochs': int,
+        'dp_keep_prob': float,
+        'debug': strtobool,
+        'save_dir': str,
+        'evaluate': strtobool,
+        'seed': int,
+    }
+    f_exp_config = os.path.join(dir_name, 'exp_config.txt')
+    args = {}
+    with open(f_exp_config, 'r') as f:
+        for line in f:
+            items = line.split()
+            key = items[0]
+            converter = types[key] if key in types else str
+            key, values = items[0], converter(items[1:][0])
+            args[key] = values
+        args['experiment_path'] = dir_name
+        args['name'] = args['save_dir'].split('/')[1]
+
+    class dotdict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+
+    args = dotdict(args)
+
+    return args

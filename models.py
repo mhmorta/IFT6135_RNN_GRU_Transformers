@@ -3,9 +3,8 @@ import torch.nn as nn
 
 import numpy as np
 import torch.nn.functional as F
-import math, copy, time
+import math, copy
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
 
 # NOTE ==============================================
 #
@@ -54,6 +53,7 @@ class RNNUnit(nn.Module):
         self.i2h = nn.Linear(input_size, hidden_size, bias=False)
         self.h2h = nn.Linear(hidden_size, hidden_size)
         self.non_linearity = nn.Tanh()
+        self.hiddens = None
 
     def forward(self, inputs, hidden):
         """
@@ -63,6 +63,9 @@ class RNNUnit(nn.Module):
         """
         hidden = self.h2h(hidden) + self.i2h(inputs)
         hidden = self.non_linearity(hidden)
+        # we only set hiddens to [] during the 5.2 experiments via model.init_hidden_state_list()
+        if self.hiddens is not None:
+            self.hiddens.append(hidden)
 
         return hidden
 
@@ -152,7 +155,6 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         for rnn_unit in self.hidden_stack:
             rnn_unit.init_weights_uniform()
 
-
     def init_hidden(self):
         # TODO ========================
         # initialize the hidden states to zero
@@ -236,6 +238,10 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         logits = torch.stack(logits)
         return logits, hidden
 
+    def init_hidden_state_list(self):
+        for unit in self.hidden_stack:
+            unit.hiddens = []
+
     def generate(self, input, hidden, generated_seq_len, temperature=1):
         # TODO ========================
         # Compute the forward pass, as in the self.forward method (above).
@@ -315,8 +321,8 @@ class RNN(nn.Module):  # Implement a stacked vanilla RNN with Tanh nonlinearitie
         hidden = torch.stack(hidden_list)
         return output, hidden
 
-# Problem 2
 
+# Problem 2
 class GRUUnit(nn.Module):
     def __init__(self, hidden_size, input_size):
         super(GRUUnit, self).__init__()
@@ -333,6 +339,7 @@ class GRUUnit(nn.Module):
 
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
+        self.hiddens = None
 
     def forward(self, inputs, hidden):
         """
@@ -344,6 +351,9 @@ class GRUUnit(nn.Module):
         z = self.sigmoid(self.i2z(inputs) + self.h2z(hidden))
         h1 = self.tanh(self.i2h(inputs) + r * self.h2h(hidden))
         hidden = (1 - z) * h1 + z * hidden
+        # we only set hiddens to [] during the 5.2 experiments via model.init_hidden_state_list()
+        if self.hiddens is not None:
+            self.hiddens.append(hidden)
 
         return hidden
 
@@ -434,7 +444,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             # collect the output of hidden layers
             hidden_list = []
 
-            # all other hidden layers: 2, 3 ...
+            # all other hidden layers: 1, 2, 3 ...
             for idx, layer in enumerate(self.hidden_stack):
                 # s_{t-1}
                 layer_hidden_prev = hidden[idx]
@@ -455,7 +465,7 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
 
         # transform list of outputs to a tensor (seq_len, batch_size, vocab_size)
         logits = torch.stack(logits)
-        return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+        return logits, hidden
 
     def generate(self, inputs, hidden, generated_seq_len, temperature=1):
         # Compute the forward pass, as in the self.forward method (above).
@@ -487,7 +497,11 @@ class GRU(nn.Module):  # Implement a stacked GRU RNN
             output, hidden = self.generate_batch(inputs, hidden, temperature)
             samples.append(output)
             inputs = output
-        return torch.stack(samples) # shape (generated_seq_len, batch_size)
+        return torch.stack(samples)  # shape (generated_seq_len, batch_size)
+
+    def init_hidden_state_list(self):
+        for unit in self.hidden_stack:
+            unit.hiddens = []
 
     def generate_batch(self, inputs, hidden, temperature):
         """
