@@ -147,6 +147,9 @@ parser.add_argument('--evaluate', action='store_true',
                     ONCE for each model setting, and only after you've \
                     completed ALL hyperparameter tuning on the validation set.\
                     Note we are not requiring you to do this.")
+# todo added new argument
+parser.add_argument('--timestep_loss', type=bool, default=False,
+                    help="Add a timestep computation for Question 5.1")
 
 # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
 # which helps for reproducibility)
@@ -381,6 +384,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     costs = 0.0
     iters = 0
     losses = []
+    seq_losses = []
 
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
@@ -424,6 +428,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                       + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
     return np.exp(costs / iters), losses
 
+    return np.exp(costs / iters), losses, seq_losses
 
 ###############################################################################
 #
@@ -454,7 +459,7 @@ for epoch in range(num_epochs):
         lr = lr * lr_decay  # decay lr if it is time
 
     # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss = run_epoch(model, train_data, True, lr)
+    train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
     val_ppl, val_loss = run_epoch(model, valid_data)
@@ -477,6 +482,10 @@ for epoch in range(num_epochs):
     # LOC RESULTS
     train_ppls.append(train_ppl)
     val_ppls.append(val_ppl)
+    print()
+    print(len(train_loss))
+    print(len(val_loss))
+    print()
     train_losses.extend(train_loss)
     val_losses.extend(val_loss)
     times.append(time.time() - t0)

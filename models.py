@@ -607,6 +607,7 @@ and a linear layer followed by a softmax.
 #LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #SOFTWARE.
+#----------------------------------------------------------------------------------
 
 
 
@@ -702,7 +703,7 @@ class WordEmbedding(nn.Module):
         self.n_units = n_units
 
     def forward(self, x):
-        #print (x)
+        #print (x)>
         return self.lut(x) * math.sqrt(self.n_units)
 
 
