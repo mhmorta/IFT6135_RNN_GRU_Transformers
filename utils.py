@@ -5,7 +5,7 @@ import torch
 import torch.nn
 from torch.autograd import Variable
 from distutils.util import strtobool
-
+import torchsummary
 
 def _read_words(filename):
     with open(filename, "r") as f:
@@ -157,3 +157,8 @@ def load_model_config(dir_name):
     args = dotdict(args)
 
     return args
+
+# def model_summary(dir_name):
+#     model_path = os.path.join(dir_name, 'best_params.pt')
+#     model = torch.load(model_path)
+#     torchsummary.summary(model, )

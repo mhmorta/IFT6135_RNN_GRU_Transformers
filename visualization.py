@@ -23,7 +23,7 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     val_losses = np.array(val_losses)
     temp = len(train_losses)/40
     temp2 = len(val_losses)/40
-    ytickss = np.append(np.array([np.min(np.clip(val_ppls, 50, 350)), np.min(np.clip(train_ppls, 50, 350))],dtype=np.int8), np.arange(0, 400, 50))
+    ytickss = np.append(np.array([np.min(np.clip(val_ppls, 50, 350)), np.min(np.clip(train_ppls, 50, 350))],dtype=np.float), np.arange(0, 400, 50))
     label_font_size = 20
     ticks_font_size = 13
 
@@ -64,6 +64,37 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     saveFig(directory+'/PPL_wrt_epoch.png')
     plt.close()
 
+def summarize_plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment, directory ):
+    epochs = range(1, 41)
+
+    ytickss = np.arange(0, 400, 50)
+    maxx = int(max(epoch_times[0][-1], epoch_times[1][-1]))
+    xticks = np.array(np.arange(0, maxx, 250))
+    xticks = np.append(xticks, maxx)
+    for i in range(len(train_ppls)):
+        yticks = np.append(ytickss, np.array([np.min(np.clip(val_ppls[i], 50, 350)), np.min(np.clip(train_ppls[i], 50, 350))],dtype=np.float) )
+        # xticks = np.append(xticks, epoch_times[i])
+    label_font_size = 20
+    ticks_font_size = 13
+
+    plt.figure(2, figsize=(20, 12))
+    for i in range(len(train_ppls)):
+        plt.plot(epoch_times[i], np.clip(train_ppls[i], 50, 350), label="Train PPL of (" + str(i+1) + ")" , marker='o' )
+        plt.plot(epoch_times[i], np.clip(val_ppls[i], 50, 350), label="Validation PPL of(" + str(i+1) + ")", marker='o' )
+
+    plt.xticks(xticks,rotation='vertical', fontsize=ticks_font_size)
+    plt.xlabel("Wall-clock-time", fontsize=label_font_size)
+    plt.ylabel("PPL value", fontsize=label_font_size)
+    plt.yticks(ytickss, fontsize=ticks_font_size)
+    title = ""
+    for i in range(len(experiment)):
+        title += "(" + str(i+1) + ") " + experiment[i] + "\n"
+    plt.suptitle('(Clipped) PPL between w.r.t the wall-clock-time\n' + title, fontsize=20)
+    plt.legend(fontsize = 'xx-large')
+    plt.grid(True)
+    saveFig('results/plots/PPL_wrt_wct_compare.png')
+    plt.close()
+
 def parse_args(directory):
     lc_path  = os.path.join(directory, 'learning_curves.npy')
     log_path = os.path.join(directory, 'log.txt')
@@ -96,9 +127,10 @@ def generate_experiment_string(args):
     return str(args["model"]) + ", " + str(args["optimizer"]) + ", lr=" + str(args["initial_lr"] )+ ",  num_layers=" +  str(args["num_layers"]) + ",  hidden_size=" + str(args["hidden_size"])
 
 def main():
-    directories = glob.glob("results/Hyper_param/*")
+    directories = glob.glob("/home/mehrzaed/Workspace/IFT6135/Projects/assignment2/output/Performance/Adam, 0.0001, 1500, 2, 0_35/*")
     for directory in directories:
         if(files_exits(directory)):
+            print(directory)
             args = utils.load_model_config(directory)
             lc_path, log_path, experiment = parse_args(directory)
             x = np.load(lc_path)[()]
@@ -107,5 +139,28 @@ def main():
             train_ppls, val_ppls, train_losses, val_losses = [x['train_ppls'], x['val_ppls'], x['train_losses'], x['val_losses'] ]
             plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment, directory)
 
-main()
+def summarize_models():
+    directories = glob.glob("output/Performance/Adam, 0.0001, 1500, 2, 0_35/*")
+    train_ppls_list, val_ppls_list, train_losses_list, val_losses_list, experiment_list, directory_list, epoch_times_list = [], [], [], [], [], [], []
+    for directory in directories:
+        if(files_exits(directory)):
+            print(directory)
+            args = utils.load_model_config(directory)
+            lc_path, log_path, experiment = parse_args(directory)
+            x = np.load(lc_path)[()]
+            experiment = generate_experiment_string(args)
+            epoch_times = extract_epoch_time(log_path)
+            train_ppls, val_ppls, train_losses, val_losses = [x['train_ppls'], x['val_ppls'], x['train_losses'], x['val_losses'] ]
+            train_ppls_list.append(train_ppls)
+            val_ppls_list.append(val_ppls)
+            train_losses_list.append(train_losses)
+            val_losses_list.append(val_losses)
+            experiment_list.append(experiment)
+            directory_list.append(directory)
+            epoch_times_list.append(epoch_times)
+
+    
+    summarize_plots(train_losses_list, val_losses_list, train_ppls_list, val_ppls_list, epoch_times_list, experiment_list, directory_list)
+
+summarize_models()
 print('Done...')
