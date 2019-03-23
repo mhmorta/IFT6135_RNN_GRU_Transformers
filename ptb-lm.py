@@ -93,7 +93,7 @@ np = numpy
 
 # NOTE ==============================================
 # This is where your models are imported
-from models import GRU, RNN
+from models import RNN, GRU
 from models import make_model as TRANSFORMER
 
 ##############################################################################
@@ -106,7 +106,8 @@ parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Mod
 
 # Arguments you may need to set to run different experiments in 4.1 & 4.2.
 parser.add_argument('--data', type=str, default='data',
-                    help='location of the data corpus')
+                    help='location of the data corpus. We suggest you change the default\
+                    here, rather than passing as an argument, to avoid long file paths.')
 parser.add_argument('--model', type=str, default='GRU',
                     help='type of recurrent net (RNN, GRU, TRANSFORMER)')
 parser.add_argument('--optimizer', type=str, default='SGD_LR_SCHEDULE',
@@ -146,9 +147,6 @@ parser.add_argument('--evaluate', action='store_true',
                     ONCE for each model setting, and only after you've \
                     completed ALL hyperparameter tuning on the validation set.\
                     Note we are not requiring you to do this.")
-# todo added new argument
-parser.add_argument('--timestep_loss', type=bool, default=False,
-                    help="Add a timestep computation for Question 5.1")
 
 # DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
 # which helps for reproducibility)
@@ -200,7 +198,7 @@ else:
 
 ###############################################################################
 #
-# DATA LOADING & PROCESSING
+# LOADING & PROCESSING
 #
 ###############################################################################
 
@@ -383,7 +381,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     costs = 0.0
     iters = 0
     losses = []
-    seq_losses = []
 
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
@@ -406,7 +403,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         # and all time-steps of the sequences.
         # For problem 5.3, you will (instead) need to compute the average loss 
         # at each time-step separately.
-
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
@@ -424,14 +420,9 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                         p.data.add_(-lr, p.grad.data)
             if step % (epoch_size // 10) == 10:
                 print('step: ' + str(step) + '\t' \
-                      + 'loss: ' + str(costs) + '\t' \
+                      + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
                       + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
-        elif args.timestep_loss:
-            for output, target in zip(outputs, targets):
-                l = loss_fn(output, target)
-                seq_losses.append(l.data.item())
-
-    return np.exp(costs / iters), losses, seq_losses
+    return np.exp(costs / iters), losses
 
 
 ###############################################################################
@@ -463,10 +454,10 @@ for epoch in range(num_epochs):
         lr = lr * lr_decay  # decay lr if it is time
 
     # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
+    train_ppl, train_loss = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss, seq_loss = run_epoch(model, valid_data)
+    val_ppl, val_loss = run_epoch(model, valid_data)
 
     # SAVE MODEL IF IT'S THE BEST SO FAR
     if val_ppl < best_val_so_far:
@@ -486,10 +477,6 @@ for epoch in range(num_epochs):
     # LOC RESULTS
     train_ppls.append(train_ppl)
     val_ppls.append(val_ppl)
-    print()
-    print(len(train_loss))
-    print(len(val_loss))
-    print()
     train_losses.extend(train_loss)
     val_losses.extend(val_loss)
     times.append(time.time() - t0)
@@ -498,11 +485,6 @@ for epoch in range(num_epochs):
               + 'val ppl: ' + str(val_ppl) + '\t' \
               + 'best val: ' + str(best_val_so_far) + '\t' \
               + 'time (s) spent in epoch: ' + str(times[-1])
-    # todo added new line to the output string
-    if len(seq_loss) > 0:
-        log_str += 'Additional data (modified)'
-        log_str += '\nval_loss={}, \nseq_losses (len={}, sum={}): {}'.format(val_loss, len(seq_loss), sum(seq_loss), seq_loss)
-
     print(log_str)
     with open(os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
         f_.write(log_str + '\n')
