@@ -9,5 +9,4 @@ denis_rnn/data/*
 .csv#
 ./Experiments/*
 */development/*
-*/samples/
 

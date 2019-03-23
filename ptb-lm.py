@@ -407,7 +407,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         # and all time-steps of the sequences.
         # For problem 5.3, you will (instead) need to compute the average loss 
         # at each time-step separately.
-
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
         costs += loss.data.item() * model.seq_len
         losses.append(costs)
@@ -427,13 +426,9 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                 print('step: ' + str(step) + '\t' \
                       + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
                       + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
-        elif args.timestep_loss:
-            for output, target in zip(outputs, targets):
-                l = loss_fn(output, target)
-                seq_losses.append(l.data.item())
+    return np.exp(costs / iters), losses
 
     return np.exp(costs / iters), losses, seq_losses
-
 
 ###############################################################################
 #
@@ -467,7 +462,7 @@ for epoch in range(num_epochs):
     train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss, seq_loss = run_epoch(model, valid_data)
+    val_ppl, val_loss = run_epoch(model, valid_data)
 
     # SAVE MODEL IF IT'S THE BEST SO FAR
     if val_ppl < best_val_so_far:
@@ -499,11 +494,6 @@ for epoch in range(num_epochs):
               + 'val ppl: ' + str(val_ppl) + '\t' \
               + 'best val: ' + str(best_val_so_far) + '\t' \
               + 'time (s) spent in epoch: ' + str(times[-1])
-    # todo added new line to the output string
-    if len(seq_loss) > 0:
-        log_str += 'Additional data (modified)'
-        log_str += '\nval_loss={}, \nseq_losses (len={}, sum={}): {}'.format(val_loss, len(seq_loss), sum(seq_loss), seq_loss)
-
     print(log_str)
     with open(os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
         f_.write(log_str + '\n')

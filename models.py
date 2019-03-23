@@ -611,6 +611,18 @@ and a linear layer followed by a softmax.
 
 
 
+#----------------------------------------------------------------------------------
+
+def ScaledDotProductAttention(query, key, value, mask = None, dropout=None):
+    d_k = query.size(-1)
+    scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, -1e9)
+    p_attn = F.softmax(scores, dim = -1)
+    if dropout is not None:
+        p_attn = dropout(p_attn)
+    return torch.matmul(p_attn, value), p_attn
+
 # TODO: implement this class
 class MultiHeadedAttention(nn.Module):
     def __init__(self, n_heads, n_units, dropout=0.1):
@@ -651,15 +663,6 @@ class MultiHeadedAttention(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-    def ScaledDotProductAttention(query, key, value, mask = None, dropout=None):
-        d_k = query.size(-1)
-        scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
-        if mask is not None:
-            scores = scores.masked_fill(mask == 0, -1e9)
-        p_attn = F.softmax(scores, dim = -1)
-        if dropout is not None:
-            p_attn = dropout(p_attn)
-        return torch.matmul(p_attn, value), p_attn
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -685,7 +688,7 @@ class MultiHeadedAttention(nn.Module):
 
         x, self.attention = ScaledDotProductAttention(q, k, v, mask, self.dropout)
         x = x.transpose(1,2).contiguous().view(bs, -1, self.h, self.d_k)
-        return self.linear[-1](x) # size: (batch_size, seq_len, self.n_units)
+        return self.linears[-1](x) # size: (batch_size, seq_len, self.n_units)
 
 
 
