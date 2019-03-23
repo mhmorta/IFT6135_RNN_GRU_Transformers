@@ -22,6 +22,7 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     val_losses = np.array(val_losses)
     temp = len(train_losses)/40
     temp2 = len(val_losses)/40
+    ytickss = np.append(np.array([np.min(val_ppls), np.min(train_ppls)],dtype=np.int), np.arange(0, 400, 50))
 
     plt.figure(1, figsize=(20, 12))
     train_losses_index = [(i % temp) == (temp-1 ) for i in range(len(train_losses))]
@@ -41,6 +42,7 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     plt.plot(epoch_times, np.clip(val_ppls, 50, 350), label="Validation PPL" , marker='o' )
     plt.xlabel("Wall-clock-time")
     plt.xticks(epoch_times,rotation='vertical')
+    plt.yticks(ytickss)
     plt.ylabel("PPL value")
     plt.suptitle(experiment + '\n' + '(Clipped) PPL between w.r.t the wall-clock-time', fontsize=13)
     plt.legend()
@@ -52,6 +54,7 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     plt.plot(epochs, np.clip(val_ppls, 50, 350), label="Validation PPL", marker='o' )
     plt.xlabel("Wall-clock-time")
     plt.xticks(epochs,rotation='vertical')
+    plt.yticks(ytickss)
     plt.ylabel("PPL value")
     plt.suptitle(experiment + '\n' + '(Clipped) PPL w.r.t the epcoh number', fontsize=13)
     plt.legend()
@@ -87,7 +90,7 @@ def files_exits(directory):
     return False 
 
 def main():
-    directories = glob.glob("output/*")
+    directories = glob.glob("results/*")
     for directory in directories:
         if(files_exits(directory)):
             lc_path, log_path, experiment = parse_args(directory)
