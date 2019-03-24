@@ -113,7 +113,10 @@ parser.add_argument('--task', type=str,
 saved_model_dir = parser.parse_args().saved_models_dir
 task = parser.parse_args().task
 for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir]:
+    if 'results/4_1/TRANSFORMER_SGD_LR_SCHEDULE_model=TRANSFORMER_optimizer=SGD_LR_SCHEDULE_initial_lr=20_batch_size=128_seq_len=35_hidden_size=512_num_layers=6_dp_keep_prob=0.9_save_best_36' != dir_name:
+        continue
     args = utils.load_model_config(dir_name)
+
     if task == '5.2' and args.model == 'TRANSFORMER':
         continue
     print('###\nDirectory {}.\nUsing args : {}\n###'.format(dir_name, args))
