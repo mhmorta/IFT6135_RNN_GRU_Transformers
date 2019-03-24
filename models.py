@@ -649,17 +649,11 @@ class MultiHeadedAttention(nn.Module):
 
         k = math.sqrt(1 / n_units)
 
-        self.w_q = nn.Linear(n_units, n_units)
-        self.w_k = nn.Linear(n_units, n_units)
-        self.w_v = nn.Linear(n_units, n_units)
 
-        nn.init.uniform_(self.w_q.weight, -k, k)
-        nn.init.uniform_(self.w_k.weight, -k, k)
-        nn.init.uniform_(self.w_v.weight, -k, k)
-
-        nn.init.uniform_(self.w_q.bias, -k, k)
-        nn.init.uniform_(self.w_k.bias, -k, k)
-        nn.init.uniform_(self.w_v.bias, -k, k)
+        self.linears = clones(nn.Linear(n_units, n_units), 4)
+        for my_linear in self.linears:
+            nn.init.uniform_(my_linear.weight, -k, k)
+            nn.init.uniform_(my_linear.bias, -k, k)
 
         self.dropout = nn.Dropout(dropout)
 
@@ -676,18 +670,9 @@ class MultiHeadedAttention(nn.Module):
 
         bs = query.size(0)
 
-        k = self.w_k(key).view(bs, -1, self.h, self.d_k)
-        q = self.w_q(query).view(bs, -1, self.h, self.d_k)
-        v = self.w_v(value).view(bs, -1, self.h, self.d_k)
-
-
-        k = k.transpose(1, 2)
-        q = q.transpose(1, 2)
-        v = v.transpose(1, 2)
-
-
+        q, k, v = [l(x).view(bs, -1, self.h, self.d_k).transpose(1, 2) for l, x in zip(self.linears, (query, key, value))]
         x, self.attention = ScaledDotProductAttention(q, k, v, mask, self.dropout)
-        x = x.transpose(1,2).contiguous().view(bs, -1, self.h, self.d_k)
+        x = x.transpose(1,2).contiguous().view(bs, -1, self.n_units)
         return self.linears[-1](x) # size: (batch_size, seq_len, self.n_units)
 
 
