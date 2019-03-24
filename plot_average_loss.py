@@ -29,4 +29,5 @@ for dir_name in dirs:
 
 for dir in dirs:
     plt.savefig('{}/average_loss.png'.format(dir))
-    plt.show()
+
+plt.show()
