@@ -428,8 +428,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                       + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
     return np.exp(costs / iters), losses
 
-    return np.exp(costs / iters), losses, seq_losses
-
 ###############################################################################
 #
 # RUN MAIN LOOP (TRAIN AND VAL)
@@ -459,7 +457,7 @@ for epoch in range(num_epochs):
         lr = lr * lr_decay  # decay lr if it is time
 
     # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss, _ = run_epoch(model, train_data, True, lr)
+    train_ppl, train_loss = run_epoch(model, train_data, True, lr)
 
     # RUN MODEL ON VALIDATION DATA
     val_ppl, val_loss = run_epoch(model, valid_data)
