@@ -27,18 +27,18 @@ def plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experimen
     label_font_size = 20
     ticks_font_size = 13
 
-    plt.figure(1, figsize=(20, 12))
-    train_losses_index = [(i % temp) == (temp-1 ) for i in range(len(train_losses))]
-    val_losses_index = [(i % temp2 )== (temp2-1) for i in range(len(val_losses))]
-    plt.plot(epochs, train_losses[train_losses_index], label="Train Losses (end)", marker='o' )
-    plt.plot(epochs, val_losses[val_losses_index], label="Validation Losses", marker='o' )
-    plt.xlabel("Epoch number")
-    plt.ylabel("Loss value")
-    plt.xticks(epochs,rotation='vertical')
-    plt.suptitle(experiment+ '\n' + "Training and Validation losses at the end of each epoch", fontsize=13)
-    plt.legend(fontsize = 'xx-large')
-    saveFig(directory+'/losees.png')
-    plt.close()
+    # plt.figure(1, figsize=(20, 12))
+    # train_losses_index = [(i % temp) == (temp-1 ) for i in range(len(train_losses))]
+    # val_losses_index = [(i % temp2 )== (temp2-1) for i in range(len(val_losses))]
+    # plt.plot(epochs, train_losses[train_losses_index], label="Train Losses (end)", marker='o' )
+    # plt.plot(epochs, val_losses[val_losses_index], label="Validation Losses", marker='o' )
+    # plt.xlabel("Epoch number")
+    # plt.ylabel("Loss value")
+    # plt.xticks(epochs,rotation='vertical')
+    # plt.suptitle(experiment+ '\n' + "Training and Validation losses at the end of each epoch", fontsize=13)
+    # plt.legend(fontsize = 'xx-large')
+    # saveFig(directory+'/losees.png')
+    # plt.close()
 
     plt.figure(2, figsize=(20, 12))
     plt.plot(epoch_times, np.clip(train_ppls, 50, 350), label="Train PPL", marker='o' )
@@ -70,10 +70,9 @@ def summarize_plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times,
     ytickss = np.arange(0, 400, 50)
     maxx = int(max(epoch_times[0][-1], epoch_times[1][-1]))
     xticks = np.array(np.arange(0, maxx, 250))
-    xticks = np.append(xticks, maxx)
+    xticks = np.append(xticks, int(maxx))
     for i in range(len(train_ppls)):
-        yticks = np.append(ytickss, np.array([np.min(np.clip(val_ppls[i], 50, 350)), np.min(np.clip(train_ppls[i], 50, 350))],dtype=np.float) )
-        # xticks = np.append(xticks, epoch_times[i])
+        ytickss = np.append(ytickss, np.array([np.min(np.clip(val_ppls[i], 50, 350)), np.min(np.clip(train_ppls[i], 50, 350))],dtype=np.float) )
     label_font_size = 20
     ticks_font_size = 13
 
@@ -124,10 +123,10 @@ def files_exits(directory):
     return False 
 
 def generate_experiment_string(args):
-    return str(args["model"]) + ", " + str(args["optimizer"]) + ", lr=" + str(args["initial_lr"] )+ ",  num_layers=" +  str(args["num_layers"]) + ",  hidden_size=" + str(args["hidden_size"])
+    return str(args["model"]) + ", " + str(args["optimizer"]) + ", lr=" + str(args["initial_lr"] )+ ",  num_layers=" +  str(args["num_layers"]) + ",  hidden_size=" + str(args["hidden_size"]) +  ",  dp_prob=" + str(args["dp_keep_prob"])
 
-def main():
-    directories = glob.glob("/home/mehrzaed/Workspace/IFT6135/Projects/assignment2/output/Performance/Adam, 0.0001, 1500, 2, 0_35/*")
+def main(address):
+    directories = glob.glob(address)
     for directory in directories:
         if(files_exits(directory)):
             print(directory)
@@ -139,8 +138,8 @@ def main():
             train_ppls, val_ppls, train_losses, val_losses = [x['train_ppls'], x['val_ppls'], x['train_losses'], x['val_losses'] ]
             plots(train_losses, val_losses, train_ppls, val_ppls, epoch_times, experiment, directory)
 
-def summarize_models():
-    directories = glob.glob("output/Performance/Adam, 0.0001, 1500, 2, 0_35/*")
+def summarize_models(address):
+    directories = glob.glob(address)
     train_ppls_list, val_ppls_list, train_losses_list, val_losses_list, experiment_list, directory_list, epoch_times_list = [], [], [], [], [], [], []
     for directory in directories:
         if(files_exits(directory)):
@@ -162,5 +161,7 @@ def summarize_models():
     
     summarize_plots(train_losses_list, val_losses_list, train_ppls_list, val_ppls_list, epoch_times_list, experiment_list, directory_list)
 
-summarize_models()
+address = 'results/4_2/*'
+main(address)
+# summarize_models(address)
 print('Done...')
