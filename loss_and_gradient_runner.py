@@ -134,7 +134,7 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_d
     # LOAD DATA
     print('Loading data from ' + args.data)
     raw_data = utils.ptb_raw_data(data_path=args.data)
-    _, valid_data, _, word_to_id, id_2_word = raw_data
+    train_data, valid_data, _, word_to_id, id_2_word = raw_data
     vocab_size = len(word_to_id)
     print('  vocabulary size: {}'.format(vocab_size))
 
@@ -229,10 +229,13 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_d
                 layer_grads = []
                 for unit in model.hidden_stack:
                     ret = torch.autograd.grad(loss, unit.hiddens, retain_graph=True)
-                    layer_grads.append(ret)
+                    # mean over examples in the minibatch 35x[20x1500] -> 35x[1500]
+                    layer_grads.append([r.mean(dim=0) for r in ret])
                 stacked = []
+                # iterate over each time-step
                 for i in range(len(layer_grads[0])):
                     stacked.append(torch.stack([layer_grads[j][i] for j in range(len(layer_grads))]))
+                # 34 x 2 x 1500 -> 34 x 1
                 ts_grads = [s.norm() for s in stacked]
                 print('norms: ', ts_grads)
                 ts_path = os.path.join(args['experiment_path'], 'timestep_grads.npy')
@@ -251,6 +254,6 @@ for dir_name in [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_d
 
 
     # RUN MODEL ON VALIDATION DATA
-    run_epoch(model, valid_data)
+    run_epoch(model, valid_data if task == '5.1' else train_data)
 
 

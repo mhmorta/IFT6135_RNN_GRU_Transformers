@@ -14,7 +14,7 @@ parser.add_argument('--saved_models_dir', type=str,
 
 saved_model_dir = parser.parse_args().saved_models_dir
 plt.figure()#(figsize=(12, 12))
-dirs = [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir]
+dirs = [x[0] for x in os.walk(saved_model_dir) if x[0] != saved_model_dir and 'TRANSFORMER' not in x[0]]
 for dir_name in dirs:
     args = utils.load_model_config(dir_name)
     x_raw = np.load(os.path.join(dir_name, 'timestep_grads.npy'))
@@ -24,8 +24,9 @@ for dir_name in dirs:
 
 plt.xlabel("Hidden state (concatenated)")
 plt.ylabel("Rescaled gradient norm")
+plt.grid()
 plt.legend()
 for dir in dirs:
-    plt.savefig('{}/timestamp_grads.png'.format(dir))
+    plt.savefig('{}/timestamp_grads_corrected.png'.format(dir))
 plt.show()
 
